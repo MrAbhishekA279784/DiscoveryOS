@@ -1,0 +1,6 @@
+{
+  "name": "DiscoveryOS",
+  "description": "The AI Product Intelligence Platform. Understand. Prioritize. Ship Better Products.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
