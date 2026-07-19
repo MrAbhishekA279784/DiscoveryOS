@@ -38,8 +38,8 @@ const painPointIcons: Record<string, React.ComponentType<any>> = {
   'language': Globe,
 };
 
-function getPainPointIcon(name: string): React.ComponentType<any> {
-  const key = Object.keys(painPointIcons).find(k => name.toLowerCase().includes(k));
+function getPainPointIcon(name: string | undefined): React.ComponentType<any> {
+  const key = Object.keys(painPointIcons).find(k => (name ?? '').toLowerCase().includes(k));
   return key ? painPointIcons[key] : Flame;
 }
 
@@ -522,8 +522,8 @@ export function SentimentOverviewCard() {
 const recColorPalette = ['#A855F7', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 const recIconOptions = [Sparkles, Zap, Moon, Flame, TrendingUp];
 
-function getRecIconAndColor(title: string, index: number) {
-  const lower = title.toLowerCase();
+function getRecIconAndColor(title: string | undefined, index: number) {
+  const lower = (title ?? '').toLowerCase();
   let icon = recIconOptions[index % recIconOptions.length];
   if (lower.includes('offline') || lower.includes('sync') || lower.includes('mode')) icon = Sparkles;
   else if (lower.includes('navigation') || lower.includes('flow') || lower.includes('nav')) icon = Zap;

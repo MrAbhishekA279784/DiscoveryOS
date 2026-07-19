@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from './api';
+import { demoFileConnectors } from './demoData';
 
 export interface FileConnector {
   id: string;
@@ -11,20 +12,16 @@ export interface FileConnector {
 }
 
 export function useFileConnectors() {
-  const [connectors, setConnectors] = useState<FileConnector[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [connectors, setConnectors] = useState<FileConnector[]>(demoFileConnectors);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
     try {
       const data = await api.metadata.fileConnectors();
-      setConnectors(data || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load file connectors');
-    } finally {
-      setIsLoading(false);
+      setConnectors(data || demoFileConnectors);
+    } catch {
+      setConnectors(demoFileConnectors);
     }
   }, []);
 

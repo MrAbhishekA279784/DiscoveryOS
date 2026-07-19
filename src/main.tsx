@@ -1,13 +1,13 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
-import {AuthProvider} from './auth/AuthContext';
+import {DemoUserProvider} from './auth/DemoUserContext';
 import App from './App.tsx';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
+    <DemoUserProvider>
       <App />
-    </AuthProvider>
+    </DemoUserProvider>
   </StrictMode>,
 );

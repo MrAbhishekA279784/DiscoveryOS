@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, APIException } from './api';
+import { api } from './api';
+import { demoAnalytics } from './demoData';
 
 export interface AnalyticsData {
   kpis: Record<string, number>;
@@ -13,46 +14,19 @@ export interface AnalyticsState {
   error: string | null;
 }
 
-const DEFAULT_ANALYTICS: AnalyticsData = {
-  kpis: {
-    feedback: 1284,
-    painPoints: 32,
-    accuracy: 96,
-    responseTime: 1.2
-  },
-  trends: [],
-  metadata: {}
-};
-
 export function useAnalytics(): AnalyticsState & { fetchInsights: () => Promise<void> } {
   const [state, setState] = useState<AnalyticsState>({
-    data: DEFAULT_ANALYTICS,
-    isLoading: true,
+    data: demoAnalytics,
+    isLoading: false,
     error: null
   });
 
   const fetchInsights = useCallback(async () => {
     try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
       const insights = await api.analytics.insights();
-      setState(prev => ({
-        ...prev,
-        data: insights || DEFAULT_ANALYTICS,
-        isLoading: false
-      }));
-    } catch (error) {
-      const errorMessage = error instanceof APIException 
-        ? `Failed to load insights (${error.status})`
-        : error instanceof Error 
-        ? error.message
-        : 'Failed to load insights';
-      
-      setState(prev => ({
-        ...prev,
-        data: DEFAULT_ANALYTICS,
-        isLoading: false,
-        error: errorMessage
-      }));
+      setState(prev => ({ ...prev, data: insights || demoAnalytics, isLoading: false }));
+    } catch {
+      setState(prev => ({ ...prev, data: demoAnalytics, isLoading: false }));
     }
   }, []);
 

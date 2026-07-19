@@ -16,11 +16,10 @@ import Footer from './Footer';
 gsap.registerPlugin(ScrollTrigger);
 
 interface LandingPageProps {
-  onLogin: () => void;
   onGetStarted: () => void;
 }
 
-export default function LandingPage({ onLogin, onGetStarted }: LandingPageProps) {
+export default function LandingPage({ onGetStarted }: LandingPageProps) {
   const mainRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,7 +40,7 @@ export default function LandingPage({ onLogin, onGetStarted }: LandingPageProps)
 
   return (
     <div ref={mainRef} className="min-h-screen bg-[#07070A] text-white overflow-x-hidden font-sans">
-      <Navbar onLogin={onLogin} onGetStarted={onGetStarted} />
+      <Navbar onGetStarted={onGetStarted} />
       <HeroSection onGetStarted={onGetStarted} />
       <TrustedBy />
       <FeaturesGrid />

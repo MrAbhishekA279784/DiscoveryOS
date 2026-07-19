@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, APIException } from './api';
+import { api } from './api';
 import { KpiItem, PainPoint, Recommendation } from '../types';
+import { demoKpis, demoPainPoints, demoRecommendations, demoSentiment, demoFeedbackTrend } from './demoData';
 
 export interface DashboardData {
   kpis: KpiItem[];
@@ -18,20 +19,18 @@ export interface DashboardState extends DashboardData {
 
 export function useDashboard(): DashboardState {
   const [state, setState] = useState<DashboardState>({
-    kpis: [],
-    painPoints: [],
-    recommendations: [],
-    sentimentData: [],
-    feedbackTrendData: [],
-    isLoading: true,
+    kpis: demoKpis,
+    painPoints: demoPainPoints,
+    recommendations: demoRecommendations,
+    sentimentData: demoSentiment,
+    feedbackTrendData: demoFeedbackTrend,
+    isLoading: false,
     error: null,
-    isEmpty: true
+    isEmpty: false
   });
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
-
       const [kpisData, painPointsData, recommendationsData, sentimentData, feedbackTrendData] = await Promise.all([
         api.dashboard.kpis(),
         api.dashboard.painPoints(),
@@ -40,31 +39,18 @@ export function useDashboard(): DashboardState {
         api.dashboard.feedbackTrend()
       ]);
 
-      const hasData = kpisData?.length > 0 || painPointsData?.length > 0 || recommendationsData?.length > 0;
-
       setState(prev => ({
         ...prev,
-        kpis: kpisData || [],
-        painPoints: painPointsData || [],
-        recommendations: recommendationsData || [],
-        sentimentData: sentimentData || [],
-        feedbackTrendData: feedbackTrendData || [],
+        kpis: kpisData || demoKpis,
+        painPoints: painPointsData || demoPainPoints,
+        recommendations: recommendationsData || demoRecommendations,
+        sentimentData: sentimentData || demoSentiment,
+        feedbackTrendData: feedbackTrendData || demoFeedbackTrend,
         isLoading: false,
-        isEmpty: !hasData
+        isEmpty: false
       }));
-    } catch (error) {
-      const errorMessage = error instanceof APIException 
-        ? `API Error (${error.status}): ${error.message}`
-        : error instanceof Error 
-        ? error.message
-        : 'Failed to load dashboard data';
-
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: errorMessage,
-        isEmpty: true
-      }));
+    } catch {
+      setState(prev => ({ ...prev, isLoading: false, isEmpty: false }));
     }
   }, []);
 

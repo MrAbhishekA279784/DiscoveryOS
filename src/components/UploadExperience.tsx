@@ -38,8 +38,8 @@ export default function UploadExperience({ onUploadSuccess, files }: UploadExper
     'Generating product insights...'
   ];
 
-  const getFileIcon = (type: string) => {
-    switch (type.toLowerCase()) {
+  const getFileIcon = (type: string | undefined) => {
+    switch ((type ?? '').toLowerCase()) {
       case 'video':
       case 'mp4':
         return <FileVideo className="w-4 h-4 text-[#8B5CF6]" />;
@@ -53,8 +53,8 @@ export default function UploadExperience({ onUploadSuccess, files }: UploadExper
     }
   };
 
-  const getIconContainerStyle = (type: string) => {
-    switch (type.toLowerCase()) {
+  const getIconContainerStyle = (type: string | undefined) => {
+    switch ((type ?? '').toLowerCase()) {
       case 'video':
       case 'mp4':
         return 'bg-[#8B5CF6]/10 border-[#8B5CF6]/20';

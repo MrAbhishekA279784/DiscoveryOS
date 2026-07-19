@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from './api';
+import { demoPromptTemplates } from './demoData';
 
 export interface PromptTemplate {
   id: string;
@@ -10,20 +11,16 @@ export interface PromptTemplate {
 }
 
 export function usePromptTemplates() {
-  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [templates, setTemplates] = useState<PromptTemplate[]>(demoPromptTemplates);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
     try {
       const data = await api.metadata.promptTemplates();
-      setTemplates(data || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load templates');
-    } finally {
-      setIsLoading(false);
+      setTemplates(data || demoPromptTemplates);
+    } catch {
+      setTemplates(demoPromptTemplates);
     }
   }, []);
 

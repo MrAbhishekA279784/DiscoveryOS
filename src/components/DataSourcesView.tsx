@@ -47,8 +47,8 @@ export default function DataSourcesView() {
   };
 
   const filteredIntegrations = integrations.filter(it => 
-    it.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    it.category.toLowerCase().includes(searchQuery.toLowerCase())
+    (it.name ?? '').toLowerCase().includes((searchQuery ?? '').toLowerCase()) || 
+    (it.category ?? '').toLowerCase().includes((searchQuery ?? '').toLowerCase())
   );
 
   return (

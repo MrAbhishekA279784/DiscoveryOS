@@ -8,8 +8,8 @@ interface RecentUploadsCardProps {
 }
 
 export default function RecentUploadsCard({ files, onUploadClick }: RecentUploadsCardProps) {
-  const getFileIcon = (type: string) => {
-    switch (type.toLowerCase()) {
+  const getFileIcon = (type: string | undefined) => {
+    switch ((type ?? '').toLowerCase()) {
       case 'video':
       case 'mp4':
         return <FileVideo className="w-4 h-4 text-[#8B5CF6]" />;
@@ -23,8 +23,8 @@ export default function RecentUploadsCard({ files, onUploadClick }: RecentUpload
     }
   };
 
-  const getIconContainerStyle = (type: string) => {
-    switch (type.toLowerCase()) {
+  const getIconContainerStyle = (type: string | undefined) => {
+    switch ((type ?? '').toLowerCase()) {
       case 'video':
       case 'mp4':
         return 'bg-[#8B5CF6]/10 border-[#8B5CF6]/20 text-[#8B5CF6]';

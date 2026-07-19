@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from './api';
+import { demoContextMemories } from './demoData';
 
 export interface ContextMemory {
   id: string;
@@ -8,20 +9,16 @@ export interface ContextMemory {
 }
 
 export function useContextMemories() {
-  const [memories, setMemories] = useState<ContextMemory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [memories, setMemories] = useState<ContextMemory[]>(demoContextMemories);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
     try {
       const data = await api.metadata.contextMemories();
-      setMemories(data || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load context memories');
-    } finally {
-      setIsLoading(false);
+      setMemories(data || demoContextMemories);
+    } catch {
+      setMemories(demoContextMemories);
     }
   }, []);
 

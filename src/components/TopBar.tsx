@@ -13,7 +13,6 @@ import {
   User,
   Shield,
   HelpCircle,
-  LogOut,
   AlertCircle,
   FileText
 } from 'lucide-react';
@@ -96,7 +95,13 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
 
       {/* Right side: Export, Notifications, Avatar */}
       <div className="flex items-center gap-4">
-        
+
+        {/* Demo Mode Badge */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-400 font-mono tracking-wide">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          Demo Mode
+        </div>
+
         {/* Premium Export PDF Action */}
         <motion.button 
           onClick={onExportPDF}
@@ -243,12 +248,12 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
             <div className="relative w-8 h-8 rounded-full overflow-hidden border border-[#8B5CF6]/40">
               {/* Fallback initials with visual avatar styling */}
               <div className="w-full h-full bg-gradient-to-tr from-[#8B5CF6] to-[#A855F7] flex items-center justify-center text-xs font-bold text-white uppercase font-sans">
-                AG
+                U
               </div>
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-bold text-white leading-none">Abhishek</span>
-              <span className="text-[9px] text-zinc-500 font-medium tracking-wide mt-0.5">Product Team</span>
+              <span className="text-xs font-bold text-white leading-none">User</span>
+              <span className="text-[9px] text-zinc-500 font-medium tracking-wide mt-0.5">Demo User</span>
             </div>
             <ChevronDown className="w-3 h-3 text-zinc-400" />
           </button>
@@ -267,8 +272,8 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
                   className="absolute right-0 mt-2.5 w-52 rounded-2xl bg-[#0F0F16] border border-white/10 p-1.5 shadow-2xl z-20"
                 >
                   <div className="px-3 py-2 border-b border-white/5 mb-1.5">
-                    <p className="text-xs font-bold text-white leading-none">Abhishek Gupta</p>
-                    <span className="text-[9px] text-zinc-500 font-mono block mt-1.5">abhishek@stadiumiq.com</span>
+                    <p className="text-xs font-bold text-white leading-none">User</p>
+                    <span className="text-[9px] text-zinc-500 font-mono block mt-1.5">user@discoveryos.ai</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-zinc-300 hover:bg-white/[0.04] transition-colors text-left">
@@ -284,10 +289,9 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
                       <span>Support Desk</span>
                     </button>
                     <div className="h-[1px] bg-white/5 my-1" />
-                    <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors text-left">
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Log Out</span>
-                    </button>
+                    <div className="px-3 py-2 text-[10px] text-zinc-500 font-mono text-center">
+                      Demo Mode — no logout
+                    </div>
                   </div>
                 </motion.div>
               </>
@@ -358,7 +362,7 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
                     {!searchLoading && !searchError && searchQuery.trim() && results.length > 0 && results.map((result, idx) => (
                       <button
                         key={result.id || idx}
-                        onClick={() => { handleCommandClick(result.title); onSearchCommand && onSearchCommand(result.title); }}
+                        onClick={() => { handleCommandClick(result.title ?? ''); onSearchCommand && onSearchCommand(result.title ?? ''); }}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#8B5CF6]/10 hover:border-[#8B5CF6]/20 border border-transparent transition-all text-left text-xs font-semibold text-zinc-300 hover:text-white"
                       >
                         <div className="flex items-center gap-3 min-w-0">

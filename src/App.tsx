@@ -15,11 +15,7 @@ import {
   Grid
 } from 'lucide-react';
 
-import { useAuth } from './auth/AuthContext';
 import LoadingScreen from './auth/LoadingScreen';
-import LoginPage from './auth/LoginPage';
-import RegisterPage from './auth/RegisterPage';
-import ForgotPasswordPage from './auth/ForgotPasswordPage';
 const LandingPage = lazy(() => import('./landing/LandingPage'));
 
 import BackgroundEffect from './components/BackgroundEffect';
@@ -53,8 +49,7 @@ import ProjectsView from './components/ProjectsView';
 import DataSourcesView from './components/DataSourcesView';
 
 export default function App() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const [authPage, setAuthPage] = useState<'login' | 'register' | 'forgot' | 'landing'>('landing');
+  const [showLanding, setShowLanding] = useState(true);
 
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedMetric, setSelectedMetric] = useState('feedback');
@@ -169,13 +164,13 @@ export default function App() {
   };
 
   const handleSearchCommand = (cmdText: string) => {
-    // Scroll or trigger views
-    if (cmdText.toLowerCase().includes('analyze') || cmdText.toLowerCase().includes('interview')) {
+    const text = (cmdText ?? '').toLowerCase();
+    if (text.includes('analyze') || text.includes('interview')) {
       setCurrentView('dashboard');
       setActiveStep(2);
-    } else if (cmdText.toLowerCase().includes('linear') || cmdText.toLowerCase().includes('roadmap')) {
+    } else if (text.includes('linear') || text.includes('roadmap')) {
       setRoadmapOpen(true);
-    } else if (cmdText.toLowerCase().includes('settings')) {
+    } else if (text.includes('settings')) {
       setCurrentView('settings');
     }
   };
@@ -187,12 +182,8 @@ export default function App() {
     { quarter: 'Q4 2026', title: 'Universal Dark Mode Ecosystem', priority: 'Medium', confidence: '71%', complexity: 'Low', items: ['Dynamic contrast-shifting themes', 'Hardware-level media matchers', 'Luminance adjustment controller'] }
   ];
 
-  if (authLoading) return <LoadingScreen />;
-  if (!isAuthenticated) {
-    if (authPage === 'landing') return <Suspense fallback={<LoadingScreen />}><LandingPage onLogin={() => setAuthPage('login')} onGetStarted={() => setAuthPage('register')} /></Suspense>;
-    if (authPage === 'register') return <RegisterPage onSwitchToLogin={() => setAuthPage('login')} />;
-    if (authPage === 'forgot') return <ForgotPasswordPage onSwitchToLogin={() => setAuthPage('login')} />;
-    return <LoginPage onSwitchToRegister={() => setAuthPage('register')} onSwitchToForgotPassword={() => setAuthPage('forgot')} />;
+  if (showLanding) {
+    return <Suspense fallback={<LoadingScreen />}><LandingPage onGetStarted={() => setShowLanding(false)} /></Suspense>;
   }
 
   return (

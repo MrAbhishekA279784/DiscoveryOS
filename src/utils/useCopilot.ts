@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { api, APIException } from './api';
+import { useState, useCallback, useRef } from 'react';
+import { api } from './api';
 import { ChatMessage } from '../types';
+import { demoCopilotResponses, demoCopilotFallback } from './demoData';
 
 export interface CopilotState {
   messages: ChatMessage[];
@@ -23,6 +24,14 @@ export function useCopilot(): CopilotState & {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const getDemoResponse = (text: string): string => {
+    const lower = (text ?? '').toLowerCase().trim();
+    for (const [key, value] of Object.entries(demoCopilotResponses)) {
+      if (lower.includes(key)) return value;
+    }
+    return demoCopilotFallback;
+  };
+
   const sendMessage = useCallback(async (text: string) => {
     const userMsg: ChatMessage = {
       id: Math.random().toString(),
@@ -31,30 +40,17 @@ export function useCopilot(): CopilotState & {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     try {
-      setState(prev => ({ 
-        ...prev, 
-        messages: [...prev.messages, userMsg], 
-        isLoading: true, 
-        error: null 
-      }));
+      setState(prev => ({ ...prev, messages: [...prev.messages, userMsg], isLoading: true, error: null }));
       const response = await api.copilot.chat(text, state.conversationId);
-      setState(prev => ({
-        ...prev,
-        messages: [...prev.messages, response],
-        isLoading: false
-      }));
-    } catch (error) {
-      const errorMessage = error instanceof APIException 
-        ? `Chat failed (${error.status})`
-        : error instanceof Error 
-        ? error.message
-        : 'Chat failed';
-      
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: errorMessage
-      }));
+      setState(prev => ({ ...prev, messages: [...prev.messages, response], isLoading: false }));
+    } catch {
+      const demoResponse: ChatMessage = {
+        id: Math.random().toString(),
+        sender: 'ai',
+        text: getDemoResponse(text),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setState(prev => ({ ...prev, messages: [...prev.messages, demoResponse], isLoading: false }));
     }
   }, [state.conversationId]);
 
@@ -66,12 +62,7 @@ export function useCopilot(): CopilotState & {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     try {
-      setState(prev => ({ 
-        ...prev, 
-        messages: [...prev.messages, userMsg], 
-        isLoading: true, 
-        error: null 
-      }));
+      setState(prev => ({ ...prev, messages: [...prev.messages, userMsg], isLoading: true, error: null }));
       abortControllerRef.current = new AbortController();
 
       const response = await api.copilot.stream(text, state.conversationId);
@@ -105,15 +96,13 @@ export function useCopilot(): CopilotState & {
       }));
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
-        const errorMessage = error instanceof APIException 
-          ? `Stream failed (${error.status})`
-          : error.message;
-        
-        setState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: errorMessage
-        }));
+        const demoResponse: ChatMessage = {
+          id: Math.random().toString(),
+          sender: 'ai',
+          text: getDemoResponse(text),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setState(prev => ({ ...prev, messages: [...prev.messages, demoResponse], isLoading: false }));
       }
     }
   }, [state.conversationId]);
