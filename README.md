@@ -86,21 +86,21 @@ Firebase Authentication with Google OAuth, JWT-protected API routes, and multi-t
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    React 19 + TypeScript                 │
+│                    React 19 + TypeScript                │
 │   Landing Page · Dashboard · Research · Insights        │
 │   Roadmap · AI Copilot · Reports · Projects · Settings  │
 └────────────────────┬────────────────────────────────────┘
                      │  REST + Streaming
 ┌────────────────────▼────────────────────────────────────┐
-│                 FastAPI (Python)                         │
+│                 FastAPI (Python)                        │
 │  /auth  /uploads  /analytics  /copilot  /search         │
 │  /reports  /projects  /datasources  /workspaces         │
 └──────┬──────────────┬──────────────────┬────────────────┘
        │              │                  │
 ┌──────▼──────┐ ┌─────▼──────┐  ┌───────▼───────┐
 │ PostgreSQL  │ │ Gemini AI  │  │ Firebase Auth │
-│ (Supabase) │ │  + NLP     │  │ + JWT Tokens  │
-│ 19 tables  │ │  Pipeline  │  │               │
+│ (Supabase)  │ │ + NLP      │  │+ JWT Tokens   │
+│ 19 tables   │ │  Pipeline  │  │               │
 └─────────────┘ └────────────┘  └───────────────┘
 ```
 
