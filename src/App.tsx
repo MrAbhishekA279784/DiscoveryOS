@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, 
@@ -14,6 +14,13 @@ import {
   Settings,
   Grid
 } from 'lucide-react';
+
+import { useAuth } from './auth/AuthContext';
+import LoadingScreen from './auth/LoadingScreen';
+import LoginPage from './auth/LoginPage';
+import RegisterPage from './auth/RegisterPage';
+import ForgotPasswordPage from './auth/ForgotPasswordPage';
+const LandingPage = lazy(() => import('./landing/LandingPage'));
 
 import BackgroundEffect from './components/BackgroundEffect';
 import Sidebar from './components/Sidebar';
@@ -31,6 +38,10 @@ import UploadExperience from './components/UploadExperience';
 import AiCopilot from './components/AiCopilot';
 import { FileItem, KpiItem, PainPoint, Recommendation } from './types';
 import { generateDashboardPDF } from './utils/pdf';
+import { useFiles } from './utils/useFiles';
+import { useSettings } from './utils/useSettings';
+import { useDashboard } from './utils/useDashboard';
+import { useWorkspaces } from './utils/useWorkspaces';
 
 // Module Page Views
 import ResearchView from './components/ResearchView';
@@ -42,22 +53,27 @@ import ProjectsView from './components/ProjectsView';
 import DataSourcesView from './components/DataSourcesView';
 
 export default function App() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [authPage, setAuthPage] = useState<'login' | 'register' | 'forgot' | 'landing'>('landing');
+
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedMetric, setSelectedMetric] = useState('feedback');
   const [roadmapOpen, setRoadmapOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
 
-  // Default Files loaded from the mockup
-  const [uploadedFiles, setUploadedFiles] = useState<FileItem[]>([
-    { id: '1', name: 'User Interviews - May 2025.mp4', size: '24 MB', type: 'video', timestamp: '2h ago' },
-    { id: '2', name: 'Customer Survey Results.csv', size: '18 KB', type: 'csv', timestamp: '5h ago' },
-    { id: '3', name: 'Support Tickets - Week 20.csv', size: '45 KB', type: 'csv', timestamp: '1d ago' },
-    { id: '4', name: 'App Store Reviews.xlsx', size: '22 KB', type: 'xlsx', timestamp: '2d ago' },
-  ]);
+  const { files: uploadedFiles, isLoading: filesLoading, fetchFiles } = useFiles();
+  const { settings } = useSettings();
+  const { kpis, painPoints, sentimentData, recommendations, feedbackTrendData } = useDashboard();
+  const { workspaces, currentWorkspace } = useWorkspaces();
 
-  const [storageUsage, setStorageUsage] = useState(82); // represents 82%
-  const [tokenUsage, setTokenUsage] = useState(13); // represents 13%
+  const [storageUsage, setStorageUsage] = useState(42);
+  const [tokenUsage, setTokenUsage] = useState(13);
+
+  useEffect(() => {
+    if (settings?.storageUsage) setStorageUsage(settings.storageUsage);
+    if (settings?.tokenUsage) setTokenUsage(settings.tokenUsage);
+  }, [settings]);
 
   const [isExporting, setIsExporting] = useState(false);
   const [activeDateRange, setActiveDateRange] = useState('May 12 - May 19, 2025');
@@ -80,49 +96,15 @@ export default function App() {
 
   const handleExportPDF = () => {
     setIsExporting(true);
-    // Simulate a brief generation delay for premium UX
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
-        const kpis: KpiItem[] = [
-          {
-            title: 'Total Feedback',
-            value: '1,284',
-            change: '12.5%',
-            isPositive: true,
-            type: 'feedback',
-            iconName: 'MessageSquare',
-            sparklineData: [40, 45, 38, 52, 48, 62, 58, 65, 74, 85, 80, 92]
-          },
-          {
-            title: 'Pain Points Identified',
-            value: '32',
-            change: '8.3%',
-            isPositive: true,
-            type: 'painpoints',
-            iconName: 'AlertTriangle',
-            sparklineData: [20, 24, 22, 28, 25, 30, 28, 35, 31, 38, 34, 42]
-          },
-          {
-            title: 'AI Accuracy',
-            value: '96%',
-            change: '4.2%',
-            isPositive: true,
-            type: 'accuracy',
-            iconName: 'Target',
-            sparklineData: [90, 91, 89, 92, 93, 92, 94, 95, 94, 96, 95, 96]
-          },
-          {
-            title: 'Avg. Response Time',
-            value: '1.2s',
-            change: '-0.3s',
-            isPositive: true,
-            type: 'responsetime',
-            iconName: 'Clock',
-            sparklineData: [1.8, 1.7, 1.6, 1.5, 1.5, 1.4, 1.3, 1.3, 1.2, 1.2, 1.2, 1.2]
-          }
+        const exportKpis: KpiItem[] = kpis.length > 0 ? kpis : [
+          { title: 'Total Feedback', value: '1,284', change: '12.5%', isPositive: true, type: 'feedback', iconName: 'MessageSquare', sparklineData: [40, 45, 38, 52, 48, 62, 58, 65, 74, 85, 80, 92] },
+          { title: 'Pain Points Identified', value: '32', change: '8.3%', isPositive: true, type: 'painpoints', iconName: 'AlertTriangle', sparklineData: [20, 24, 22, 28, 25, 30, 28, 35, 31, 38, 34, 42] },
+          { title: 'AI Accuracy', value: '96%', change: '4.2%', isPositive: true, type: 'accuracy', iconName: 'Target', sparklineData: [90, 91, 89, 92, 93, 92, 94, 95, 94, 96, 95, 96] },
+          { title: 'Avg. Response Time', value: '1.2s', change: '-0.3s', isPositive: true, type: 'responsetime', iconName: 'Clock', sparklineData: [1.8, 1.7, 1.6, 1.5, 1.5, 1.4, 1.3, 1.3, 1.2, 1.2, 1.2, 1.2] }
         ];
-
-        const painPoints: PainPoint[] = [
+        const exportPainPoints: PainPoint[] = painPoints.length > 0 ? painPoints : [
           { id: '1', name: 'Offline Mode', count: 432, percentage: 33.6 },
           { id: '2', name: 'Dark Mode', count: 310, percentage: 24.1 },
           { id: '3', name: 'Navigation Issues', count: 220, percentage: 17.1 },
@@ -130,45 +112,25 @@ export default function App() {
           { id: '5', name: 'Price Transparency', count: 96, percentage: 7.5 },
           { id: '6', name: 'Language Support', count: 68, percentage: 5.4 }
         ];
-
-        const sentimentData = [
+        const exportSentiment = sentimentData.length > 0 ? sentimentData : [
           { name: 'Positive', value: 512, percentage: 39.9, color: '#22C55E' },
           { name: 'Neutral', value: 423, percentage: 32.9, color: '#F59E0B' },
           { name: 'Negative', value: 278, percentage: 21.7, color: '#EF4444' },
           { name: 'Mixed', value: 71, percentage: 5.5, color: '#A855F7' }
         ];
-
-        const recommendations: Recommendation[] = [
-          {
-            id: 'r1',
-            title: 'Prioritize Offline Mode',
-            freqImpact: 'High frequency + High impact',
-            confidence: 94,
-            iconName: 'Sparkles'
-          },
-          {
-            id: 'r2',
-            title: 'Improve Navigation Flow',
-            freqImpact: 'Medium frequency + High impact',
-            confidence: 78,
-            iconName: 'Zap'
-          },
-          {
-            id: 'r3',
-            title: 'Add Dark Mode Support',
-            freqImpact: 'High frequency + Medium impact',
-            confidence: 71,
-            iconName: 'Moon'
-          }
+        const exportRecommendations: Recommendation[] = recommendations.length > 0 ? recommendations : [
+          { id: 'r1', title: 'Prioritize Offline Mode', freqImpact: 'High frequency + High impact', confidence: 94, iconName: 'Sparkles' },
+          { id: 'r2', title: 'Improve Navigation Flow', freqImpact: 'Medium frequency + High impact', confidence: 78, iconName: 'Zap' },
+          { id: 'r3', title: 'Add Dark Mode Support', freqImpact: 'High frequency + Medium impact', confidence: 71, iconName: 'Moon' }
         ];
 
         generateDashboardPDF({
-          workspace: 'StadiumIQ',
-          activeDateRange: activeDateRange,
-          kpis,
-          painPoints,
-          sentimentData,
-          recommendations,
+          workspace: currentWorkspace?.name || 'StadiumIQ',
+          activeDateRange,
+          kpis: exportKpis,
+          painPoints: exportPainPoints,
+          sentimentData: exportSentiment,
+          recommendations: exportRecommendations,
           uploadedFilesCount: uploadedFiles.length
         });
 
@@ -182,13 +144,10 @@ export default function App() {
     }, 1000);
   };
 
-  // Callback when a simulated file is loaded
+  // Callback when a file is uploaded
   const handleNewUpload = (newFile: FileItem) => {
-    setUploadedFiles(prev => [newFile, ...prev]);
-    // Gently increment stats
-    setStorageUsage(prev => Math.min(100, prev + 3));
-    setTokenUsage(prev => Math.min(100, prev + 5));
-    setActiveStep(2); // Advanced state to Analyze
+    fetchFiles();
+    setActiveStep(2);
     showToast(`Successfully uploaded & sync'd: ${newFile.name}`, 'success');
   };
 
@@ -227,6 +186,14 @@ export default function App() {
     { quarter: 'Q3 2026', title: 'Intelligent Nav Flow Refactoring', priority: 'High', confidence: '78%', complexity: 'High', items: ['Multi-panel workspace router', 'Predictive action item caching', 'Universal hotkey drawer'] },
     { quarter: 'Q4 2026', title: 'Universal Dark Mode Ecosystem', priority: 'Medium', confidence: '71%', complexity: 'Low', items: ['Dynamic contrast-shifting themes', 'Hardware-level media matchers', 'Luminance adjustment controller'] }
   ];
+
+  if (authLoading) return <LoadingScreen />;
+  if (!isAuthenticated) {
+    if (authPage === 'landing') return <Suspense fallback={<LoadingScreen />}><LandingPage onLogin={() => setAuthPage('login')} onGetStarted={() => setAuthPage('register')} /></Suspense>;
+    if (authPage === 'register') return <RegisterPage onSwitchToLogin={() => setAuthPage('login')} />;
+    if (authPage === 'forgot') return <ForgotPasswordPage onSwitchToLogin={() => setAuthPage('login')} />;
+    return <LoginPage onSwitchToRegister={() => setAuthPage('register')} onSwitchToForgotPassword={() => setAuthPage('forgot')} />;
+  }
 
   return (
     <div id="application-root" className="min-h-screen relative font-sans text-white bg-[#07070A] p-6 flex flex-col xl:grid xl:grid-cols-[320px_minmax(0,1fr)] gap-6 max-w-[1920px] mx-auto min-w-0">
@@ -334,15 +301,15 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono">Workspace Slug</label>
-                  <input type="text" value="stadium-iq-enterprise" disabled className="w-full bg-white/[0.02] border border-white/5 p-3 rounded-xl text-xs text-zinc-400 font-mono cursor-not-allowed mt-1" />
+                  <input type="text" value={settings?.workspaceSlug || 'stadium-iq-enterprise'} disabled className="w-full bg-white/[0.02] border border-white/5 p-3 rounded-xl text-xs text-zinc-400 font-mono cursor-not-allowed mt-1" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono">Discovery AI Version</label>
-                  <input type="text" value="Discovery-v3.5-Omni-Pro (Staging)" disabled className="w-full bg-white/[0.02] border border-white/5 p-3 rounded-xl text-xs text-zinc-400 font-mono cursor-not-allowed mt-1" />
+                  <input type="text" value={settings?.aiModelVersion || 'Discovery-v3.5-Omni-Pro (Staging)'} disabled className="w-full bg-white/[0.02] border border-white/5 p-3 rounded-xl text-xs text-zinc-400 font-mono cursor-not-allowed mt-1" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono">Sync Interval</label>
-                  <select className="w-full bg-[#121218] border border-white/5 p-3 rounded-xl text-xs text-zinc-300 font-mono mt-1 focus:border-[#8B5CF6]/50 outline-none">
+                  <select defaultValue={settings?.syncInterval || 'Real-Time Push Hooks'} className="w-full bg-[#121218] border border-white/5 p-3 rounded-xl text-xs text-zinc-300 font-mono mt-1 focus:border-[#8B5CF6]/50 outline-none">
                     <option>Real-Time Push Hooks</option>
                     <option>Hourly cron</option>
                     <option>Daily batch ingest</option>
@@ -351,8 +318,8 @@ export default function App() {
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono">Stripe Subscription</label>
                   <div className="w-full bg-white/[0.02] border border-white/5 p-3 rounded-xl flex items-center justify-between text-xs mt-1">
-                    <span className="font-bold text-emerald-400">StadiumIQ Pro Tier</span>
-                    <span className="text-[10px] text-zinc-500 font-mono">$490 / month</span>
+                    <span className="font-bold text-emerald-400">{settings?.stripeSubscription?.plan || 'StadiumIQ Pro Tier'}</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">${settings?.stripeSubscription?.monthlyPrice || 490} / month</span>
                   </div>
                 </div>
               </div>
@@ -360,19 +327,29 @@ export default function App() {
               <div className="flex flex-col gap-1.5 mt-4">
                 <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono">Environment Status Flags</span>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-1.5">
-                  {[
-                    { label: 'Gemini Keys API', val: 'Active', color: 'text-emerald-400 bg-emerald-500/10' },
-                    { label: 'Cloud Run Ingress', val: 'Connected', color: 'text-emerald-400 bg-emerald-500/10' },
-                    { label: 'Linear Sync Integration', val: 'Idle', color: 'text-amber-400 bg-amber-500/10' },
-                    { label: 'OAuth Gateway', val: 'Configured', color: 'text-[#8B5CF6] bg-[#8B5CF6]/10' },
-                    { label: 'DB Cluster Replica', val: '99.99% Up', color: 'text-emerald-400 bg-emerald-500/10' },
-                    { label: 'Secure Socket Layers', val: 'Active', color: 'text-emerald-400 bg-emerald-500/10' }
-                  ].map((flag, i) => (
-                    <div key={i} className="p-3 rounded-xl bg-white/[0.01] border border-white/5 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-zinc-400">{flag.label}</span>
-                      <span className={`text-[9px] font-mono font-bold uppercase rounded px-1.5 py-0.5 mt-1 w-fit ${flag.color}`}>{flag.val}</span>
-                    </div>
-                  ))}
+                  {(settings?.environmentStatus && settings.environmentStatus.length > 0 ? settings.environmentStatus : [
+                    { label: 'Gemini Keys API', value: 'Active', color: 'emerald' },
+                    { label: 'Cloud Run Ingress', value: 'Connected', color: 'emerald' },
+                    { label: 'Linear Sync Integration', value: 'Idle', color: 'amber' },
+                    { label: 'OAuth Gateway', value: 'Configured', color: 'purple' },
+                    { label: 'DB Cluster Replica', value: '99.99% Up', color: 'emerald' },
+                    { label: 'Secure Socket Layers', value: 'Active', color: 'emerald' }
+                  ]).map((flag: any, i: number) => {
+                    const val = flag.val || flag.value || 'Active';
+                    const colorMap: Record<string, string> = {
+                      emerald: 'text-emerald-400 bg-emerald-500/10',
+                      amber: 'text-amber-400 bg-amber-500/10',
+                      purple: 'text-[#8B5CF6] bg-[#8B5CF6]/10',
+                      red: 'text-red-400 bg-red-500/10',
+                    };
+                    const colorClass = colorMap[flag.color] || 'text-zinc-400 bg-zinc-500/10';
+                    return (
+                      <div key={i} className="p-3 rounded-xl bg-white/[0.01] border border-white/5 flex flex-col gap-1">
+                        <span className="text-[10px] font-bold text-zinc-400">{flag.label}</span>
+                        <span className={`text-[9px] font-mono font-bold uppercase rounded px-1.5 py-0.5 mt-1 w-fit ${colorClass}`}>{val}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

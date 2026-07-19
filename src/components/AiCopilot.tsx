@@ -12,9 +12,12 @@ import {
   FileText, 
   Compass, 
   User, 
-  MessageSquare 
+  MessageSquare,
+  AlertCircle
 } from 'lucide-react';
 import { ChatMessage } from '../types';
+import { useCopilot } from '../utils/useCopilot';
+import { useDashboard } from '../utils/useDashboard';
 
 interface AiCopilotProps {
   onTriggerRoadmap?: () => void;
@@ -22,19 +25,25 @@ interface AiCopilotProps {
 }
 
 export default function AiCopilot({ onTriggerRoadmap, onSearchCommand }: AiCopilotProps) {
+  const { messages, isLoading, error: copilotError, sendMessage, streamMessage } = useCopilot();
+  const { painPoints } = useDashboard();
   const [inputText, setInputText] = useState('');
-  const [isCopilotThinking, setIsCopilotThinking] = useState(true); // Default to thinking to match image on boot
-  const [currentThinkingStep, setCurrentThinkingStep] = useState(3); // Shows Generating insights loading
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [currentThinkingStep, setCurrentThinkingStep] = useState(3);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'm1',
-      sender: 'user',
-      text: 'What are our top customers asking for?',
-      timestamp: '10:30 AM'
+  // Cycle thinking step if loading
+  useEffect(() => {
+    if (isLoading) {
+      setCurrentThinkingStep(0);
+      const interval = setInterval(() => {
+        setCurrentThinkingStep(prev => (prev < 3 ? prev + 1 : 3));
+      }, 800);
+      return () => clearInterval(interval);
     }
-  ]);
+  }, [isLoading]);
+
+  const displayMessages = messages;
+  const isCopilotThinking = isLoading;
 
   const suggestedPrompts = [
     { label: 'What should we build next?', text: 'What should we build next based on pain points?', icon: Search },
@@ -43,144 +52,23 @@ export default function AiCopilot({ onTriggerRoadmap, onSearchCommand }: AiCopil
     { label: 'Find top pain points', text: 'Find top pain points ranked by user mentions', icon: Compass }
   ];
 
-  const copilotResponses: Record<string, { text: string; sources: string[]; steps: string[] }> = {
-    'what should we build next': {
-      text: 'Offline Mode is your highest priority feature to build next. It represents 33.6% (432 mentions) of total user friction. Resolving this will immediately boost user sentiment score and aligns directly with requests in the customer surveys.',
-      sources: ['Customer Survey Results.csv', 'Support Tickets - Week 20.csv'],
-      steps: ['Scanning feedback records', 'Calculating impact weights', 'Predicting sentiment bounce', 'Formulating priority recommendation']
-    },
-    'show me user sentiment trend': {
-      text: 'Sentiment is highly positive at 39.9% (512 reviews). However, 21.7% is negative, specifically tied to app lag, seat search bugs, and navigation friction. Addressing navigation issues will immediately move neutral reviewers to positive.',
-      sources: ['Customer Survey Results.csv', 'App Store Reviews.xlsx'],
-      steps: ['Parsing sentiment fields', 'Aggregating timeline averages', 'Isolating negative feedback categories']
-    },
-    'summarize the latest user interview insights': {
-      text: 'In the latest video recording "User Interviews - May 2025.mp4", users strongly vocalized a need for stable local-first storage. There is high willingness to upgrade to Enterprise tier if reliable background syncing is deployed.',
-      sources: ['User Interviews - May 2025.mp4'],
-      steps: ['Parsing audio transcript', 'Extracting core customer quotes', 'Classifying pain point relevance']
-    },
-    'find top pain points ranked by user mentions': {
-      text: 'The classified pain points ranked by customer mentions are:\n1. Offline Mode (432 mentions) — High Impact\n2. Dark Mode (310 mentions) — High Impact\n3. Navigation Issues (220 mentions) — Medium Impact\n4. Seat Search (158 mentions) — Medium Impact.',
-      sources: ['Support Tickets - Week 20.csv', 'App Store Reviews.xlsx'],
-      steps: ['Clustering friction keywords', 'Weighting mention counts', 'Filtering out outliers']
-    }
-  };
-
-  // Autocomplete analyzing on startup after 5 seconds to show rich loaded text
-  useEffect(() => {
-    if (isCopilotThinking && messages.length === 1) {
-      const timer = setTimeout(() => {
-        setIsCopilotThinking(false);
-        setMessages(prev => [
-          ...prev,
-          {
-            id: 'm2',
-            sender: 'ai',
-            text: 'Based on our multi-source intelligence ingest, customers are heavily focusing on mobile capability and design enhancements. Offline synchronization remains their paramount requirement.',
-            timestamp: '10:31 AM',
-            confidenceScore: 96,
-            sources: ['User Interviews - May 2025.mp4', 'Customer Survey Results.csv']
-          }
-        ]);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [isCopilotThinking, messages]);
-
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isCopilotThinking]);
-
-  const triggerCopilotResponse = (userQuery: string) => {
-    setIsCopilotThinking(true);
-    setCurrentThinkingStep(0);
-
-    const cleanQuery = userQuery.toLowerCase();
-    let matchKey = '';
-    
-    if (cleanQuery.includes('build next')) matchKey = 'what should we build next';
-    else if (cleanQuery.includes('sentiment')) matchKey = 'show me user sentiment trend';
-    else if (cleanQuery.includes('interview')) matchKey = 'summarize the latest user interview insights';
-    else if (cleanQuery.includes('pain point') || cleanQuery.includes('ranked')) matchKey = 'find top pain points ranked by user mentions';
-
-    const matchedResponse = matchKey ? copilotResponses[matchKey] : {
-      text: `Based on StadiumIQ product statistics, we classified ${userQuery.length + 120} distinct customer triggers. Let me know if you would like me to compile a comprehensive document layout.`,
-      sources: ['Support Tickets - Week 20.csv'],
-      steps: ['Querying database', 'Filtering results', 'Formatting reply']
-    };
-
-    // Cycle through thinking steps
-    let currentStep = 0;
-    const stepsCount = matchedResponse.steps ? matchedResponse.steps.length : 3;
-    const stepInterval = setInterval(() => {
-      currentStep += 1;
-      setCurrentThinkingStep(currentStep);
-      if (currentStep >= stepsCount) {
-        clearInterval(stepInterval);
-        setIsCopilotThinking(false);
-
-        // Streaming typewriter text addition
-        const newAiMessageId = Math.random().toString();
-        const fullText = matchedResponse.text;
-        
-        setMessages(prev => [
-          ...prev,
-          {
-            id: newAiMessageId,
-            sender: 'ai',
-            text: '',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isStreaming: true,
-            confidenceScore: 92 + Math.floor(Math.random() * 7),
-            sources: matchedResponse.sources
-          }
-        ]);
-
-        let charIdx = 0;
-        const typingInterval = setInterval(() => {
-          charIdx += 4;
-          setMessages(prev => 
-            prev.map(msg => 
-              msg.id === newAiMessageId 
-                ? { ...msg, text: fullText.substring(0, charIdx), isStreaming: charIdx < fullText.length } 
-                : msg
-            )
-          );
-
-          if (charIdx >= fullText.length) {
-            clearInterval(typingInterval);
-          }
-        }, 30);
-      }
-    }, 800);
-  };
+  }, [displayMessages, isCopilotThinking]);
 
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim() || isCopilotThinking) return;
 
-    const userMessage: ChatMessage = {
-      id: Math.random().toString(),
-      sender: 'user',
-      text: inputText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    // Use streaming message trigger
+    const query = inputText;
     setInputText('');
-    triggerCopilotResponse(userMessage.text);
+    streamMessage(query, () => {});
   };
 
   const handleSuggestionClick = (promptText: string) => {
     if (isCopilotThinking) return;
-    const userMessage: ChatMessage = {
-      id: Math.random().toString(),
-      sender: 'user',
-      text: promptText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setMessages(prev => [...prev, userMessage]);
-    triggerCopilotResponse(promptText);
+    streamMessage(promptText, () => {});
   };
 
   return (
@@ -205,7 +93,7 @@ export default function AiCopilot({ onTriggerRoadmap, onSearchCommand }: AiCopil
 
           {/* Messages Loop / Thinking state */}
           <div className="overflow-y-auto max-h-[220px] pr-1 flex flex-col gap-3 scroll-smooth">
-            {messages.map((msg) => (
+            {displayMessages.map((msg) => (
               <div 
                 key={msg.id} 
                 className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
@@ -250,6 +138,13 @@ export default function AiCopilot({ onTriggerRoadmap, onSearchCommand }: AiCopil
             ))}
 
             {/* Simulated checklist (Matches the screenshot exactly when isCopilotThinking) */}
+            {copilotError && !isCopilotThinking && (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px]">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{copilotError}</span>
+              </div>
+            )}
+
             {isCopilotThinking && (
               <div className="flex flex-col items-start w-full">
                 <div className="flex items-center gap-2 mb-1">
@@ -321,29 +216,29 @@ export default function AiCopilot({ onTriggerRoadmap, onSearchCommand }: AiCopil
           </div>
 
           <div className="flex flex-col gap-2.5">
-            {[
-              { id: 1, title: 'Offline Mode', mentions: 432, impact: 'High impact', color: 'text-[#A855F7] bg-[#8B5CF6]/10 border-[#8B5CF6]/20' },
-              { id: 2, title: 'Dark Mode', mentions: 310, impact: 'High impact', color: 'text-[#A855F7] bg-[#8B5CF6]/10 border-[#8B5CF6]/20' },
-              { id: 3, title: 'Navigation Issues', mentions: 220, impact: 'Medium impact', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }
-            ].map((req) => (
+            {(painPoints.length > 0 ? painPoints.slice(0, 3) : [
+              { id: '1', name: 'Offline Mode', count: 432, percentage: 33.6 },
+              { id: '2', name: 'Dark Mode', count: 310, percentage: 24.1 },
+              { id: '3', name: 'Navigation Issues', count: 220, percentage: 17.1 }
+            ]).map((req, idx) => (
               <div 
-                key={req.id} 
+                key={req.id || idx} 
                 className="flex items-center justify-between p-2 rounded-xl bg-white/[0.01] border border-white/5 hover:border-white/10 transition-colors gap-3 min-w-0"
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {/* Number Badge */}
                   <div className="w-5.5 h-5.5 rounded-md bg-white/5 flex items-center justify-center text-xs text-zinc-400 font-bold shrink-0">
-                    {req.id}
+                    {idx + 1}
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-xs font-bold text-white truncate leading-tight block w-full">{req.title}</span>
-                    <span className="text-[9px] text-zinc-500 font-medium font-mono mt-0.5">{req.mentions} mentions</span>
+                    <span className="text-xs font-bold text-white truncate leading-tight block w-full">{req.name}</span>
+                    <span className="text-[9px] text-zinc-500 font-medium font-mono mt-0.5">{req.count || 0} mentions</span>
                   </div>
                 </div>
 
                 {/* Impact Badge */}
-                <span className={`text-[8px] font-bold uppercase tracking-wide px-2 py-1 rounded-md shrink-0 border ${req.color}`}>
-                  {req.impact}
+                <span className={`text-[8px] font-bold uppercase tracking-wide px-2 py-1 rounded-md shrink-0 border ${req.count >= 300 ? 'text-[#A855F7] bg-[#8B5CF6]/10 border-[#8B5CF6]/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'}`}>
+                  {req.count >= 300 ? 'High impact' : 'Medium impact'}
                 </span>
               </div>
             ))}
@@ -352,7 +247,7 @@ export default function AiCopilot({ onTriggerRoadmap, onSearchCommand }: AiCopil
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-white/5 pt-2.5 mt-2.5 text-[9px] text-zinc-500">
-          <span>Based on 1,284 feedback items</span>
+          <span>Based on {painPoints.reduce((s, p) => s + p.count, 0) || 1284} feedback items</span>
           <div className="flex items-center gap-2">
             <button className="hover:text-white transition-colors">
               <ThumbsUp className="w-3 h-3 text-zinc-500 hover:text-[#22C55E]" />

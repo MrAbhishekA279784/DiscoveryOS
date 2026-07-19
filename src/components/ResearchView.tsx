@@ -1,58 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
 import { 
   Search, 
   Filter, 
-  Calendar, 
-  Database, 
   Cpu, 
   Sparkles, 
-  BookOpen, 
-  TrendingUp, 
   Plus, 
   ChevronRight, 
   FileText, 
   CheckCircle, 
   Loader2,
   ArrowRight,
-  MessageSquare,
   Bookmark,
   Share2
 } from 'lucide-react';
+import { useSearch } from '../utils/useSearch';
+import { useCopilot } from '../utils/useCopilot';
 
 export default function ResearchView() {
   const [searchQuery, setSearchQuery] = useState('Analyze user feedback regarding offline database sync conflicts');
-  const [isSearching, setIsSearching] = useState(false);
   const [activeSession, setActiveSession] = useState('db-sync');
-  const [streamedText, setStreamedText] = useState('');
-  const [streamIndex, setStreamIndex] = useState(0);
-
-  const fullAiResponse = "Based on 47 indexed documents including customer interviews and Jira crash logs: 33.6% of conflict reports stem from concurrent local updates while offline, particularly when a user re-establishes socket connection on poor Wi-Fi. The primary failure occurs in the delta record reconciliation controller, where the server-authoritative timestamp fails to merge non-overlapping schema blocks. I recommend transitioning to atomic CRDTs (Conflict-free Replicated Data Types) for high-frequency collaborative tables.";
-
-  useEffect(() => {
-    if (isSearching) {
-      setStreamedText('');
-      setStreamIndex(0);
-      const timer = setTimeout(() => {
-        setIsSearching(false);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isSearching]);
+  const { results, isLoading: searchLoading, error: searchError, search } = useSearch();
+  const { messages: copilotMessages, isLoading: copilotLoading, error: copilotError, streamMessage } = useCopilot();
+  const isSearching = searchLoading || copilotLoading;
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!isSearching && streamIndex < fullAiResponse.length) {
-      const interval = setInterval(() => {
-        setStreamedText((prev) => prev + fullAiResponse.charAt(streamIndex));
-        setStreamIndex((prev) => prev + 1);
-      }, 15);
-      return () => clearInterval(interval);
-    }
-  }, [isSearching, streamIndex]);
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [copilotMessages, copilotLoading]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSearching(true);
+    if (searchQuery.trim()) {
+      search(searchQuery);
+      streamMessage(searchQuery, () => {});
+    }
   };
 
   const sessions = [
@@ -62,12 +44,24 @@ export default function ResearchView() {
     { id: 'billing-ux', title: 'Pro Tier Checkout drop-offs', date: 'Jul 04, 2026', count: 6 }
   ];
 
-  const timelineMessages = [
+  const timelineMessages = copilotMessages.length > 0 ? copilotMessages.map(m => ({
+    sender: m.sender,
+    text: m.text,
+    time: m.timestamp,
+    isAi: m.sender === 'ai',
+    loading: m.isStreaming || false
+  })) : [
     { sender: 'user', text: "What are the primary friction points users encounter with offline data synchronization?", time: "10:42 AM" },
-    { sender: 'ai', isAi: true, text: streamedText || (isSearching ? '' : fullAiResponse), time: "10:43 AM", loading: isSearching }
+    { sender: 'ai', isAi: true, text: copilotLoading ? '' : 'Ask the AI Copilot to analyze your data.', time: "10:43 AM", loading: false }
   ];
 
-  const sourcesTable = [
+  const sourcesTable = searchLoading ? [] : results.length > 0 ? results.slice(0, 4).map(r => ({
+    name: r.title,
+    format: r.source || 'Document',
+    size: '-',
+    matchScore: `${r.matchScore}%`,
+    status: 'Indexed'
+  })) : [
     { name: 'interview_user_382.txt', format: 'TXT', size: '24 KB', matchScore: '98%', status: 'Indexed' },
     { name: 'db_sync_error_stack.log', format: 'LOG', size: '152 KB', matchScore: '94%', status: 'Indexed' },
     { name: 'offline_sync_improvement_v2.docx', format: 'DOCX', size: '1.2 MB', matchScore: '89%', status: 'Indexed' },
@@ -75,7 +69,7 @@ export default function ResearchView() {
   ];
 
   return (
-    <div className="w-full flex flex-col gap-6">
+    <div className="w-full flex flex-col gap-6" role="region" aria-label="Research View">
       {/* Top Search Query & Filter Row */}
       <form onSubmit={handleSearchSubmit} className="glass-panel p-4.5 rounded-2xl border-white/5 flex flex-col gap-4">
         <div className="flex items-center gap-3">
@@ -87,6 +81,7 @@ export default function ResearchView() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search research repository or ask discovery engine..."
               className="w-full bg-[#0E0E15]/80 border border-white/8 pl-11 pr-4 py-2.5 rounded-xl text-xs font-medium text-white focus:outline-none focus:border-[#8B5CF6]/50 focus:shadow-[0_0_15px_rgba(139,92,246,0.1)] transition-all"
+              aria-label="Search research repository or ask discovery engine"
             />
           </div>
           <button 
@@ -137,12 +132,13 @@ export default function ResearchView() {
             </button>
           </div>
 
-          <div className="glass-panel p-2 rounded-2xl border-white/5 flex flex-col gap-1.5 flex-1 max-h-[460px] overflow-y-auto">
+          <div className="glass-panel p-2 rounded-2xl border-white/5 flex flex-col gap-1.5 flex-1 max-h-[460px] overflow-y-auto" role="list" aria-label="Research sessions">
             {sessions.map((session) => {
               const isActive = activeSession === session.id;
               return (
                 <button
                   key={session.id}
+                  role="listitem"
                   onClick={() => {
                     setActiveSession(session.id);
                     if (session.id === 'db-sync') {
@@ -154,7 +150,7 @@ export default function ResearchView() {
                     } else {
                       setSearchQuery('Check Pro checkout drop-off rate triggers');
                     }
-                    setIsSearching(true);
+                    search(searchQuery);
                   }}
                   className={`w-full p-3 rounded-xl flex flex-col gap-1.5 text-left transition-all ${
                     isActive 
@@ -182,7 +178,7 @@ export default function ResearchView() {
             <span className="text-[9px] text-zinc-600 font-mono">Active Model: Gemini 3.5 Omni</span>
           </div>
 
-          <div className="glass-panel p-4.5 rounded-2xl border-white/5 flex flex-col gap-4 flex-1 h-[460px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="glass-panel p-4.5 rounded-2xl border-white/5 flex flex-col gap-4 flex-1 h-[460px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" aria-live="polite" aria-label="Discovery Timeline">
             {timelineMessages.map((msg, i) => (
               <div 
                 key={i} 
@@ -269,7 +265,7 @@ export default function ResearchView() {
                     key={idx}
                     onClick={() => {
                       setSearchQuery(q);
-                      setIsSearching(true);
+                      search(q);
                     }}
                     className="w-full text-left p-2.5 rounded-lg bg-white/[0.01] border border-white/5 hover:bg-[#8B5CF6]/5 hover:border-[#8B5CF6]/25 transition-all flex items-center justify-between group min-w-0"
                   >
@@ -305,7 +301,7 @@ export default function ResearchView() {
         </div>
 
         <div className="glass-panel overflow-x-auto rounded-2xl border-white/5">
-          <table className="w-full text-left border-collapse min-w-[600px]">
+          <table className="w-full text-left border-collapse min-w-[600px]" aria-label="Connected Research Artifacts">
             <thead>
               <tr className="border-b border-white/5 bg-white/[0.01]">
                 <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Artifact Name</th>

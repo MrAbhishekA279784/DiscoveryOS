@@ -1,27 +1,26 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { 
-  TrendingUp, 
   AlertTriangle, 
   Smile, 
   Frown, 
   MessageSquare, 
   Heart, 
-  BarChart3, 
   Lightbulb, 
-  Users, 
   ShieldAlert, 
   Sparkles, 
-  ArrowUpRight, 
   CheckCircle2,
   ChevronRight,
-  Filter
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { useDashboard } from '../utils/useDashboard';
 
 export default function InsightsView() {
   const [selectedSentiment, setSelectedSentiment] = useState('all');
+  const { kpis, painPoints, recommendations: dashRecs, sentimentData, isLoading, error } = useDashboard();
 
-  const kpis = [
+  const kpisData = kpis.length > 0 ? kpis : [
     { title: 'Total Feedbacks', value: '1,284', change: '+12.5%', isPositive: true, subtext: 'indexed from connected sources', icon: MessageSquare, color: '#8B5CF6' },
     { title: 'Detected Pain Points', value: '412', change: '+4.2%', isPositive: false, subtext: 'resolved or mitigated: 184', icon: AlertTriangle, color: '#F59E0B' },
     { title: 'Positive Signals', value: '512', change: '+18.1%', isPositive: true, subtext: 'high client satisfaction rate', icon: Smile, color: '#10B981' },
@@ -36,7 +35,12 @@ export default function InsightsView() {
     { text: "Adding reports exports to PowerPoint will fully replace our internal product dashboard tools. Great progress!", source: "Executive Account QBR Feedback", date: "5 days ago", sentiment: "positive", impact: "high" }
   ];
 
-  const categories = [
+  const categories = painPoints.length > 0 ? painPoints.map((pp, i) => ({
+    name: pp.name,
+    count: pp.count,
+    percentage: pp.percentage,
+    color: ['#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'][i % 5]
+  })) : [
     { name: 'Database Sync & Offline Failures', count: 432, percentage: 33.6, color: '#8B5CF6' },
     { name: 'Dark Mode & Interface Contrast', count: 310, percentage: 24.1, color: '#10B981' },
     { name: 'Navigation Flow & Core Lag', count: 220, percentage: 17.1, color: '#F59E0B' },
@@ -44,14 +48,20 @@ export default function InsightsView() {
     { name: 'PowerPoint & PDF Export Errors', count: 140, percentage: 11.1, color: '#EC4899' }
   ];
 
-  const recommendations = [
+  const recommendations = dashRecs.length > 0 ? dashRecs.map(r => ({
+    action: r.title,
+    benefit: r.freqImpact || 'Auto-detected priority',
+    type: r.confidence > 85 ? 'Critical' : r.confidence > 70 ? 'High Impact' : 'Medium',
+    icon: Lightbulb,
+    color: '#8B5CF6'
+  })) : [
     { action: "Implement SQLite client-side replica", benefit: "Solves 33.6% offline sync crashes", type: "Critical", icon: Lightbulb, color: '#8B5CF6' },
     { action: "Inject dark mode system matchers", benefit: "Resolves contrast readability requests", type: "High Impact", icon: Sparkles, color: '#10B981' },
     { action: "Stagger layout shifts via dynamic skeleton loaders", benefit: "Eliminates core lag metrics", type: "Medium", icon: CheckCircle2, color: '#F59E0B' }
   ];
 
   return (
-    <div className="w-full flex flex-col gap-6">
+    <div className="w-full flex flex-col gap-6" role="region" aria-label="Insights View">
       
       {/* KPI Section */}
       <div>
@@ -60,8 +70,20 @@ export default function InsightsView() {
           <span className="text-[9px] text-zinc-600 font-mono">Data synced: Live</span>
         </div>
         
+        {isLoading && (
+          <div className="glass-panel p-8 rounded-2xl border-white/5 flex items-center justify-center" aria-live="polite">
+            <Loader2 className="w-5 h-5 text-[#8B5CF6] animate-spin" />
+          </div>
+        )}
+        {error && !isLoading && (
+          <div className="glass-panel p-4 rounded-2xl border-rose-500/20 flex items-center gap-2 text-rose-400 text-xs" role="alert">
+            <AlertCircle className="w-4 h-4" />
+            <span>{error}</span>
+          </div>
+        )}
+        {!isLoading && !error && (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-          {kpis.map((kpi, idx) => {
+          {kpisData.map((kpi, idx) => {
             const Icon = kpi.icon;
             return (
               <div key={idx} className="glass-panel p-4.5 rounded-2xl border-white/5 flex flex-col gap-2 min-w-0">
@@ -84,6 +106,8 @@ export default function InsightsView() {
             );
           })}
         </div>
+      )}
+
       </div>
 
       {/* Charts & Distributions */}
@@ -180,9 +204,9 @@ export default function InsightsView() {
           <div className="flex items-center justify-between px-1">
             <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase font-bold">Customer Quotes Timeline</span>
             <div className="flex items-center gap-2">
-              <button onClick={() => setSelectedSentiment('all')} className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded ${selectedSentiment === 'all' ? 'bg-[#8B5CF6]/20 text-[#A855F7] border border-[#8B5CF6]/30' : 'text-zinc-500'}`}>All</button>
-              <button onClick={() => setSelectedSentiment('positive')} className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded ${selectedSentiment === 'positive' ? 'bg-[#10B981]/20 text-emerald-400 border border-[#10B981]/30' : 'text-zinc-500'}`}>Positive</button>
-              <button onClick={() => setSelectedSentiment('negative')} className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded ${selectedSentiment === 'negative' ? 'bg-[#EF4444]/20 text-red-400 border border-[#EF4444]/30' : 'text-zinc-500'}`}>Negative</button>
+              <button onClick={() => setSelectedSentiment('all')} aria-pressed={selectedSentiment === 'all'} className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded ${selectedSentiment === 'all' ? 'bg-[#8B5CF6]/20 text-[#A855F7] border border-[#8B5CF6]/30' : 'text-zinc-500'}`}>All</button>
+              <button onClick={() => setSelectedSentiment('positive')} aria-pressed={selectedSentiment === 'positive'} className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded ${selectedSentiment === 'positive' ? 'bg-[#10B981]/20 text-emerald-400 border border-[#10B981]/30' : 'text-zinc-500'}`}>Positive</button>
+              <button onClick={() => setSelectedSentiment('negative')} aria-pressed={selectedSentiment === 'negative'} className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded ${selectedSentiment === 'negative' ? 'bg-[#EF4444]/20 text-red-400 border border-[#EF4444]/30' : 'text-zinc-500'}`}>Negative</button>
             </div>
           </div>
 

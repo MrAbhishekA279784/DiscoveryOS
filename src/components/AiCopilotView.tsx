@@ -1,115 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { 
   Sparkles, 
   Send, 
   BookOpen, 
-  CheckCircle, 
-  Pin, 
   Paperclip, 
   Cpu, 
-  Search, 
-  ArrowRight, 
-  FileText, 
   RefreshCw, 
-  MessageSquare,
-  Bookmark,
   ChevronRight,
-  Database,
-  Terminal,
-  Grid
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
+import { useCopilot } from '../utils/useCopilot';
+import { useContextMemories } from '../utils/useContextMemories';
+import { usePromptTemplates } from '../utils/usePromptTemplates';
 
 export default function AiCopilotView() {
-  const [messages, setMessages] = useState([
-    { 
-      id: 1,
-      sender: 'user', 
-      text: "Show me the technical recommendations for fixing the offline sync conflicts as a clean table.", 
-      time: "11:02 AM" 
-    },
-    { 
-      id: 2,
-      sender: 'ai', 
-      text: "Based on 47 indexed support tickets and server trace logs, here are the core mitigation plans:",
-      table: [
-        { layer: "Local Database", component: "SQLite Client Replica", recommendation: "Transition to logical conflict-free replicated data types (CRDTs)", severity: "Critical" },
-        { layer: "Synchronization Controller", component: "Delta Reconciliation Manager", recommendation: "Enforce vector clock sequencing over absolute server timestamps", severity: "High" },
-        { layer: "Ingress Router", component: "Socket Connection Listener", recommendation: "Stagger connection backoffs via Jittered Exponential Backoff", severity: "Medium" }
-      ],
-      code: `// Vector Clock Sequence Merge Validator
-interface VectorClock {
-  client_id: string;
-  sequence_number: number;
-}
-
-export function resolveSyncDelta(local: VectorClock, remote: VectorClock) {
-  if (local.sequence_number > remote.sequence_number) {
-    return "client-authoritative-merge";
-  }
-  return "server-overwrite-block";
-}`,
-      sources: ['interview_user_382.txt', 'db_sync_error_stack.log'],
-      confidence: '96.4%',
-      time: "11:03 AM",
-      pinned: true
-    }
-  ]);
+  const { messages, isLoading, error: copilotError, sendMessage, streamMessage } = useCopilot();
   const [inputText, setInputText] = useState('');
   const [activePromptTab, setActivePromptTab] = useState('sync');
-  const [isTyping, setIsTyping] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  const promptTemplates = [
-    { id: 'sync', title: 'Offline database sync failures', query: 'Recommend technical solutions for offline delta schema merging.' },
-    { id: 'contrast', title: 'Contrast ratios & accessibility', query: 'List user complaints regarding dark mode UI readability.' },
-    { id: 'drawer', title: 'Drawer navigation lag shift', query: 'Explain the root cause of layout shift and thread lock on drawer close.' }
-  ];
+  const { memories: contextMemories, isLoading: memLoading, error: memError, refetch: refetchMem } = useContextMemories();
+  const { templates: promptTemplates, isLoading: ptLoading, error: ptError, refetch: refetchPt } = usePromptTemplates();
 
-  const contextMemories = [
-    { key: 'Target Client', val: 'Enterprise Pro users' },
-    { key: 'Main Friction', val: 'Offline DB delta overlaps' },
-    { key: 'Workspace', val: 'StadiumIQ Enterprise' },
-    { key: 'AI Context Depth', val: '47 connected source docs' }
-  ];
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || isLoading) return;
 
-    const userMsg = {
-      id: messages.length + 1,
-      sender: 'user',
-      text: inputText,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setMessages(prev => [...prev, userMsg]);
-    const requestedQuery = inputText;
+    const query = inputText;
     setInputText('');
-    setIsTyping(true);
-
-    setTimeout(() => {
-      setIsTyping(false);
-      setMessages(prev => [...prev, {
-        id: prev.length + 1,
-        sender: 'ai',
-        text: `I have analyzed your request regarding "${requestedQuery}". Cross-referencing against our vector schemas, I recommend checking local sequence counters on connected nodes and scheduling thread buffers. Let me know if you would like a code snippet!`,
-        sources: ['interview_user_382.txt'],
-        confidence: '91.8%',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        pinned: false
-      }]);
-    }, 1500);
+    streamMessage(query, () => {});
   };
 
   return (
-    <div className="w-full grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
+    <div className="w-full grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch" role="region" aria-label="AI Copilot View">
       
       {/* Left Panel: Memory Context & Templates (col-span-4) */}
       <div className="xl:col-span-4 flex flex-col gap-5 min-w-0">
         
         {/* Context Memory Card */}
-        <div className="flex flex-col gap-3 min-w-0">
+        <div className="flex flex-col gap-3 min-w-0" role="region" aria-label="AI Context Memory">
           <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase font-bold px-1">AI Context Memory</span>
           
           <div className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3">
@@ -119,35 +54,85 @@ export function resolveSyncDelta(local: VectorClock, remote: VectorClock) {
             </div>
             
             <div className="grid grid-cols-1 gap-2.5 mt-1.5">
-              {contextMemories.map((mem, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.01] border border-white/5 text-[10.5px]">
-                  <span className="font-mono text-zinc-400 font-bold uppercase text-[9px] tracking-wide">{mem.key}</span>
-                  <span className="font-semibold text-white truncate max-w-[140px]">{mem.val}</span>
+              {memLoading ? (
+                <div className="flex items-center justify-center gap-2 p-4 text-zinc-400 text-[10.5px]">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
+                  <span>Loading memories...</span>
                 </div>
-              ))}
+              ) : memError ? (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10.5px]">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{memError}</span>
+                  </div>
+                  <button
+                    onClick={() => refetchMem()}
+                    className="flex items-center gap-1 text-[9px] font-mono font-bold text-rose-400 hover:text-rose-300 transition-colors"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Retry
+                  </button>
+                </div>
+              ) : contextMemories.length === 0 ? (
+                <div className="flex items-center justify-center p-4 text-zinc-500 text-[10.5px]">
+                  No context memories stored yet
+                </div>
+              ) : (
+                contextMemories.map((mem, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.01] border border-white/5 text-[10.5px]">
+                    <span className="font-mono text-zinc-400 font-bold uppercase text-[9px] tracking-wide">{mem.key}</span>
+                    <span className="font-semibold text-white truncate max-w-[140px]">{mem.value}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
 
         {/* Prompt Templates */}
-        <div className="flex flex-col gap-3 min-w-0">
+        <div className="flex flex-col gap-3 min-w-0" role="region" aria-label="Prompt Templates">
           <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase font-bold px-1">Prompt Templates</span>
           
           <div className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3">
             <div className="flex flex-col gap-2">
-              {promptTemplates.map((pt) => (
-                <button
-                  key={pt.id}
-                  onClick={() => setInputText(pt.query)}
-                  className="w-full text-left p-3 rounded-xl border border-white/5 hover:border-[#8B5CF6]/30 bg-white/[0.01] hover:bg-[#8B5CF6]/5 transition-all flex flex-col gap-1.5 group min-w-0"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-[10.5px] font-bold text-white group-hover:text-[#8B5CF6] transition-colors">{pt.title}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:translate-x-0.5 transition-transform shrink-0" />
+              {ptLoading ? (
+                <div className="flex items-center justify-center gap-2 p-4 text-zinc-400 text-[10.5px]">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
+                  <span>Loading templates...</span>
+                </div>
+              ) : ptError ? (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10.5px]">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{ptError}</span>
                   </div>
-                  <p className="text-[9.5px] text-zinc-400 truncate leading-none">{pt.query}</p>
-                </button>
-              ))}
+                  <button
+                    onClick={() => refetchPt()}
+                    className="flex items-center gap-1 text-[9px] font-mono font-bold text-rose-400 hover:text-rose-300 transition-colors"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Retry
+                  </button>
+                </div>
+              ) : promptTemplates.length === 0 ? (
+                <div className="flex items-center justify-center p-4 text-zinc-500 text-[10.5px]">
+                  No prompt templates available
+                </div>
+              ) : (
+                promptTemplates.map((pt) => (
+                  <button
+                    key={pt.id}
+                    onClick={() => setInputText(pt.prompt)}
+                    className="w-full text-left p-3 rounded-xl border border-white/5 hover:border-[#8B5CF6]/30 bg-white/[0.01] hover:bg-[#8B5CF6]/5 transition-all flex flex-col gap-1.5 group min-w-0"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-[10.5px] font-bold text-white group-hover:text-[#8B5CF6] transition-colors">{pt.title}</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    </div>
+                    <p className="text-[9.5px] text-zinc-400 truncate leading-none">{pt.prompt}</p>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -170,15 +155,28 @@ export function resolveSyncDelta(local: VectorClock, remote: VectorClock) {
       <div className="xl:col-span-8 flex flex-col gap-4 min-w-0 h-[620px] justify-between">
         
         {/* Chat Stream Panel */}
-        <div className="glass-panel p-5 rounded-2xl border-white/5 flex flex-col gap-4.5 flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="glass-panel p-5 rounded-2xl border-white/5 flex flex-col gap-4.5 flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" aria-live="polite" aria-label="Chat messages">
+          {copilotError && !isLoading && messages.length === 0 && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{copilotError}</span>
+            </div>
+          )}
+
+          {messages.length === 0 && !isLoading && !copilotError && (
+            <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-2">
+              <Sparkles className="w-6 h-6 text-[#8B5CF6]" />
+              <span className="text-xs font-medium">Ask the AI Copilot anything about your data</span>
+            </div>
+          )}
+
           {messages.map((msg) => (
             <div 
               key={msg.id} 
               className={`flex flex-col gap-2 max-w-[90%] ${msg.sender === 'user' ? 'self-end items-end' : 'self-start items-start'}`}
             >
               <div className="flex items-center gap-2 text-[9px] font-mono font-bold text-zinc-500 uppercase">
-                {msg.sender === 'user' ? 'Researcher' : 'AI Assistant'} • {msg.time}
-                {msg.pinned && <Pin className="w-3 h-3 text-[#8B5CF6] shrink-0" />}
+                {msg.sender === 'user' ? 'Researcher' : 'AI Assistant'} • {msg.timestamp}
               </div>
 
               <div 
@@ -188,60 +186,21 @@ export function resolveSyncDelta(local: VectorClock, remote: VectorClock) {
                     : 'bg-[#12121E]/60 border-[#8B5CF6]/15 text-zinc-200 rounded-tl-none'
                 }`}
               >
-                {/* Main text response */}
-                <span>{msg.text}</span>
-
-                {/* Optional Table */}
-                {msg.table && (
-                  <div className="overflow-x-auto rounded-xl border border-white/5 mt-1">
-                    <table className="w-full text-left border-collapse min-w-[380px] text-[10.5px]">
-                      <thead>
-                        <tr className="border-b border-white/5 bg-white/[0.01]">
-                          <th className="py-2.5 px-3 font-mono font-bold uppercase text-[9px] text-zinc-400">Layer</th>
-                          <th className="py-2.5 px-3 font-mono font-bold uppercase text-[9px] text-zinc-400">Component</th>
-                          <th className="py-2.5 px-3 font-mono font-bold uppercase text-[9px] text-zinc-400">Recommendation</th>
-                          <th className="py-2.5 px-3 font-mono font-bold uppercase text-[9px] text-zinc-400">Severity</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {msg.table.map((row, rIdx) => (
-                          <tr key={rIdx} className="border-b border-white/5 last:border-0 hover:bg-white/[0.01]">
-                            <td className="py-2 px-3 text-zinc-400 font-mono text-[9.5px]">{row.layer}</td>
-                            <td className="py-2 px-3 font-semibold text-white">{row.component}</td>
-                            <td className="py-2 px-3 text-zinc-300 leading-normal">{row.recommendation}</td>
-                            <td className="py-2 px-3">
-                              <span className={`px-1 rounded text-[8px] font-mono uppercase font-bold ${
-                                row.severity === 'Critical' ? 'bg-[#EF4444]/10 text-red-400' : 'bg-amber-500/10 text-amber-400'
-                              }`}>{row.severity}</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Optional Code Block */}
-                {msg.code && (
-                  <div className="relative rounded-xl border border-white/5 overflow-hidden mt-1 font-mono text-[10px] bg-[#0E0E14] p-3 text-emerald-400">
-                    <div className="absolute right-3 top-3 text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest font-mono">TypeScript</div>
-                    <pre className="overflow-x-auto pr-16">{msg.code}</pre>
-                  </div>
-                )}
+                <span>{msg.text}{msg.isStreaming && <span className="typing-cursor ml-1" />}</span>
 
                 {/* Optional metadata (Sources & Confidence) */}
-                {(msg.sources || msg.confidence) && (
+                {msg.sender === 'ai' && (msg.sources || msg.confidenceScore) && (
                   <div className="flex items-center justify-between pt-3 border-t border-white/5 flex-wrap gap-2 text-[9px] font-mono text-zinc-500 font-semibold">
-                    {msg.sources && (
+                    {msg.sources && msg.sources.length > 0 && (
                       <div className="flex items-center gap-1.5">
                         <BookOpen className="w-3.5 h-3.5 text-[#8B5CF6]" />
                         <span>Sources: {msg.sources.join(', ')}</span>
                       </div>
                     )}
-                    {msg.confidence && (
+                    {msg.confidenceScore && (
                       <div className="flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Confidence score: <strong className="text-white">{msg.confidence}</strong></span>
+                        <span>Confidence score: <strong className="text-white">{msg.confidenceScore}%</strong></span>
                       </div>
                     )}
                   </div>
@@ -250,21 +209,22 @@ export function resolveSyncDelta(local: VectorClock, remote: VectorClock) {
             </div>
           ))}
 
-          {/* Typing animation indicator */}
-          {isTyping && (
+          {/* Loading indicator */}
+          {isLoading && (
             <div className="flex flex-col gap-2 max-w-[80%] self-start items-start">
-              <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase">AI Assistant • typing...</span>
+              <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase">AI Assistant • thinking...</span>
               <div className="p-3.5 rounded-2xl bg-[#12121E]/60 border border-[#8B5CF6]/15 rounded-tl-none flex items-center gap-2 text-zinc-500 font-mono text-[10px]">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#8B5CF6]" />
-                <span>Generating vector sequence map...</span>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B5CF6]" />
+                <span>Generating response...</span>
               </div>
             </div>
           )}
+          <div ref={chatEndRef} />
         </div>
 
         {/* Input Form Box */}
         <form onSubmit={handleSendMessage} className="glass-panel p-3 rounded-2xl border-white/5 flex items-center gap-2.5 bg-[#0A0A10]/95">
-          <button type="button" className="p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 text-zinc-400 hover:text-white transition-all shrink-0">
+          <button type="button" className="p-2 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 text-zinc-400 hover:text-white transition-all shrink-0" aria-label="Attach file">
             <Paperclip className="w-4 h-4" />
           </button>
 
@@ -274,11 +234,13 @@ export function resolveSyncDelta(local: VectorClock, remote: VectorClock) {
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Ask AI Copilot to code, summarize or query details..."
             className="flex-1 bg-transparent text-xs font-semibold text-white focus:outline-none min-w-0"
+            aria-label="Ask AI Copilot to code, summarize or query details"
           />
 
           <button 
             type="submit" 
             className="w-8.5 h-8.5 rounded-xl bg-gradient-to-tr from-[#8B5CF6] to-[#A855F7] hover:brightness-110 active:scale-95 text-white flex items-center justify-center transition-all shrink-0 shadow-[0_4px_12px_rgba(139,92,246,0.3)]"
+            aria-label="Send message"
           >
             <Send className="w-3.5 h-3.5" />
           </button>

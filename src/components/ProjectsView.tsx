@@ -1,49 +1,40 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
 import { 
-  Folder, 
   Plus, 
   Grid, 
   List, 
   Search, 
-  Filter, 
   Users, 
   FileText, 
-  Calendar, 
-  CheckCircle2, 
-  Clock, 
-  MoreVertical,
-  ChevronRight,
-  TrendingUp
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { useProjects } from '../utils/useProjects';
+import { useActivity } from '../utils/useActivity';
 
 export default function ProjectsView() {
+  const { projects, isLoading, error, isEmpty, createProject, updateProject } = useProjects();
+  const { activities: recentActivity, isLoading: actLoading, error: actError, refetch: refetchAct } = useActivity();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  const projects = [
-    { id: 1, name: 'StadiumIQ Local Database Sync', status: 'Active', progress: 82, members: 4, docs: 12, deadline: 'Aug 15, 2026', risk: 'Low', desc: 'Implementing a local client replica database sync engine to prevent data drop issues.' },
-    { id: 2, name: 'DiscoveryOS Theme Engine Refactor', status: 'Active', progress: 45, members: 2, docs: 6, deadline: 'Sep 02, 2026', risk: 'Low', desc: 'Refactoring stylesheet theme contexts to support dynamic dark mode system layouts.' },
-    { id: 3, name: 'Navigation Threading Stability', status: 'Review', progress: 95, members: 3, docs: 15, deadline: 'Jul 28, 2026', risk: 'High', desc: 'Debugging frozen rendering thread and layout shifts on nav sidebar events.' },
-    { id: 4, name: 'PowerPoint Slide Vector Compiler', status: 'Planning', progress: 10, members: 2, docs: 4, deadline: 'Oct 10, 2026', risk: 'Low', desc: 'Compiling real-time dashboard analytics charts into native PowerPoint vector shapes.' },
-    { id: 5, name: 'Legacy Workspace Deprecation', status: 'Archived', progress: 100, members: 1, docs: 2, deadline: 'Completed', risk: 'None', desc: 'De-indexing legacy databases and pruning cold telemetry streams.' }
+  const displayProjects = projects.length > 0 ? projects : [
+    { id: '1', name: 'StadiumIQ Local Database Sync', status: 'Active', progress: 82, members: 4, docs: 12, deadline: 'Aug 15, 2026', risk: 'Low', desc: 'Implementing a local client replica database sync engine to prevent data drop issues.' },
+    { id: '2', name: 'DiscoveryOS Theme Engine Refactor', status: 'Active', progress: 45, members: 2, docs: 6, deadline: 'Sep 02, 2026', risk: 'Low', desc: 'Refactoring stylesheet theme contexts to support dynamic dark mode system layouts.' },
+    { id: '3', name: 'Navigation Threading Stability', status: 'Review', progress: 95, members: 3, docs: 15, deadline: 'Jul 28, 2026', risk: 'High', desc: 'Debugging frozen rendering thread and layout shifts on nav sidebar events.' },
+    { id: '4', name: 'PowerPoint Slide Vector Compiler', status: 'Planning', progress: 10, members: 2, docs: 4, deadline: 'Oct 10, 2026', risk: 'Low', desc: 'Compiling real-time dashboard analytics charts into native PowerPoint vector shapes.' },
+    { id: '5', name: 'Legacy Workspace Deprecation', status: 'Archived', progress: 100, members: 1, docs: 2, deadline: 'Completed', risk: 'None', desc: 'De-indexing legacy databases and pruning cold telemetry streams.' }
   ];
 
-  const recentActivity = [
-    { user: 'abhishekgupta8arollno29@gmail.com', action: 'Uploaded interview_user_382.txt to', project: 'StadiumIQ Local Database Sync', time: '12 mins ago' },
-    { user: 'DiscoveryOS AI Agent', action: 'Generated structural recommendations for', project: 'Navigation Threading Stability', time: '1 hour ago' },
-    { user: 'abhishekgupta8arollno29@gmail.com', action: 'Created new project', project: 'PowerPoint Slide Vector Compiler', time: '3 hours ago' }
-  ];
-
-  const filteredProjects = projects.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.desc.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || p.status.toLowerCase() === filterStatus.toLowerCase();
+  const filteredProjects = displayProjects.filter((p: any) => {
+    const matchesSearch = (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (p.desc || p.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || (p.status || '').toLowerCase() === filterStatus.toLowerCase();
     return matchesSearch && matchesStatus;
   });
 
   return (
-    <div className="w-full flex flex-col gap-6">
+    <div className="w-full flex flex-col gap-6" role="region" aria-label="Projects View">
       
       {/* Top Banner Control Panel */}
       <div className="glass-panel p-4.5 rounded-2xl border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -70,6 +61,7 @@ export default function ProjectsView() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search projects..."
               className="w-full bg-[#0E0E15]/90 border border-white/5 pl-9 pr-3 py-1.5 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-[#8B5CF6]/50 transition-all"
+              aria-label="Search projects"
             />
           </div>
 
@@ -92,18 +84,37 @@ export default function ProjectsView() {
           <button 
             onClick={() => setViewMode('grid')}
             className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-[#8B5CF6] text-white' : 'text-zinc-400 hover:text-white'}`}
+            aria-label="Grid view"
+            aria-pressed={viewMode === 'grid'}
           >
             <Grid className="w-4 h-4" />
           </button>
           <button 
             onClick={() => setViewMode('list')}
             className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-[#8B5CF6] text-white' : 'text-zinc-400 hover:text-white'}`}
+            aria-label="List view"
+            aria-pressed={viewMode === 'list'}
           >
             <List className="w-4 h-4" />
           </button>
         </div>
       </div>
 
+      {isLoading && (
+        <div className="glass-panel p-8 rounded-2xl border-white/5 flex items-center justify-center" aria-live="polite">
+          <Loader2 className="w-5 h-5 text-[#8B5CF6] animate-spin" />
+        </div>
+      )}
+
+      {error && !isLoading && (
+        <div className="glass-panel p-4 rounded-2xl border-rose-500/20 flex items-center gap-2 text-rose-400 text-xs" role="alert">
+          <AlertCircle className="w-4 h-4" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {!isLoading && !error && (
+      <>
       {/* Grid or List View of Projects */}
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -195,14 +206,36 @@ export default function ProjectsView() {
           </table>
         </div>
       )}
+      </>)}
 
       {/* Workspace Activity Log */}
       <div className="flex flex-col gap-3">
         <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase font-bold px-1">Workspace Activity Logs</span>
         
-        <div className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3">
-          {recentActivity.map((act, idx) => (
-            <div key={idx} className="flex items-start justify-between gap-3 text-xs p-2.5 rounded-xl bg-white/[0.01] border border-white/5">
+        <div className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3" role="list" aria-label="Workspace activity logs">
+          {actLoading && (
+            <div className="flex items-center gap-2 p-3 text-zinc-500 text-xs" aria-live="polite">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B5CF6]" />
+              <span>Loading activity...</span>
+            </div>
+          )}
+
+          {actError && !actLoading && (
+            <div className="flex flex-col gap-2 p-3" role="alert">
+              <div className="flex items-center gap-2 text-rose-400 text-xs">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{actError}</span>
+              </div>
+              <button onClick={refetchAct} className="self-start text-[10px] text-[#8B5CF6] font-semibold hover:underline">Retry</button>
+            </div>
+          )}
+
+          {!actLoading && !actError && recentActivity.length === 0 && (
+            <div className="p-4 text-center text-zinc-500 text-xs">No recent activity</div>
+          )}
+
+          {!actLoading && !actError && recentActivity.map((act, idx) => (
+            <div key={act.id || idx} className="flex items-start justify-between gap-3 text-xs p-2.5 rounded-xl bg-white/[0.01] border border-white/5" role="listitem">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] animate-pulse shrink-0" />
                 <p className="text-zinc-400 min-w-0 truncate">
@@ -210,7 +243,7 @@ export default function ProjectsView() {
                 </p>
               </div>
 
-              <span className="text-[10px] text-zinc-500 font-mono shrink-0">{act.time}</span>
+              <span className="text-[10px] text-zinc-500 font-mono shrink-0">{act.timestamp}</span>
             </div>
           ))}
         </div>

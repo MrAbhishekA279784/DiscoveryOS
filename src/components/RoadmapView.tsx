@@ -13,13 +13,27 @@ import {
   ChevronRight, 
   ShieldAlert,
   Sliders,
-  Play
+  Play,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { useDashboard } from '../utils/useDashboard';
+import { useProjects } from '../utils/useProjects';
 
 export default function RoadmapView() {
   const [activeQuarter, setActiveQuarter] = useState('Q3');
+  const { recommendations, isLoading: dashLoading, error: dashError } = useDashboard();
+  const { projects, isLoading: projLoading, error: projError } = useProjects();
+  const isLoading = dashLoading || projLoading;
+  const error = dashError || projError;
 
-  const milestones = [
+  const milestones = projects.length > 0 ? projects.slice(0, 4).map((p, i) => ({
+    title: p.name,
+    date: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD',
+    status: p.status === 'Active' ? 'In Progress' : p.status === 'Review' ? 'In Progress' : p.status === 'Planning' ? 'Scheduled' : 'Deferred',
+    progress: p.progress,
+    color: ['#8B5CF6', '#10B981', '#F59E0B', '#EC4899'][i % 4]
+  })) : [
     { title: 'Offline Replica Core', date: 'Aug 15', status: 'In Progress', progress: 65, color: '#8B5CF6' },
     { title: 'Contrast-Shift Theme', date: 'Sep 02', status: 'Scheduled', progress: 0, color: '#10B981' },
     { title: 'Drawer Navigation Refactor', date: 'Oct 20', status: 'Scheduled', progress: 0, color: '#F59E0B' },
@@ -81,7 +95,19 @@ export default function RoadmapView() {
         </div>
       </div>
 
-      {/* Milestones Progress Row */}
+      {isLoading && (
+        <div className="glass-panel p-8 rounded-2xl border-white/5 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 text-[#8B5CF6] animate-spin" />
+        </div>
+      )}
+      {error && !isLoading && (
+        <div className="glass-panel p-4 rounded-2xl border-rose-500/20 flex items-center gap-2 text-rose-400 text-xs">
+          <AlertCircle className="w-4 h-4" />
+          <span>{error}</span>
+        </div>
+      )}
+      {!isLoading && !error && (
+      <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {milestones.map((ms, idx) => (
           <div key={idx} className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3 min-w-0 relative overflow-hidden">
@@ -227,6 +253,8 @@ export default function RoadmapView() {
         </div>
 
       </div>
+    </div>
+      )}
     </div>
   );
 }

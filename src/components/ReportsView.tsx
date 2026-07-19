@@ -1,22 +1,20 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
 import { 
   FileText, 
   Download, 
-  Share2, 
   CheckCircle2, 
   AlertTriangle, 
   ShieldAlert, 
-  TrendingUp, 
-  ExternalLink,
-  ChevronRight,
-  Database,
-  Search,
-  Sparkles
+  Sparkles,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { useReports } from '../utils/useReports';
 
 export default function ReportsView() {
+  const { reports, isLoading, error, isEmpty, generateReport, downloadReport } = useReports();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   const exportCards = [
     { type: 'PowerPoint Vector', size: '12.4 MB', desc: 'Editable high-fidelity corporate presentation slides with vector graphs', extension: 'PPTX', color: '#EC4899' },
@@ -24,22 +22,34 @@ export default function ReportsView() {
     { type: 'Granular Feedback Index', size: '420 KB', desc: 'Raw spreadsheet of all 1,284 user reviews with sentiment vectors', extension: 'CSV', color: '#10B981' }
   ];
 
-  const historicalReports = [
-    { title: 'StadiumIQ Executive Q2 Summary', date: 'Jul 18, 2026', author: 'DiscoveryOS AI Agent', format: 'PPTX', size: '14.2 MB' },
-    { title: 'Offline Database Sync Friction Log', date: 'Jul 15, 2026', author: 'abhishekgupta8arollno29@gmail.com', format: 'PDF', size: '2.4 MB' },
-    { title: 'Pro Tier Checkout Drop-offs Assessment', date: 'Jul 04, 2026', author: 'DiscoveryOS AI Agent', format: 'PDF', size: '1.8 MB' },
-    { title: 'Sprint 14 Release Candidate Readiness', date: 'Jun 28, 2026', author: 'abhishekgupta8arollno29@gmail.com', format: 'CSV', size: '840 KB' }
-  ];
-
-  const handleCreateReport = () => {
+  const handleCreateReport = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
+    setGenError(null);
+    try {
+      await generateReport('pdf');
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : 'Failed to generate report');
+    } finally {
       setIsGenerating(false);
-    }, 1500);
+    }
+  };
+
+  const handleDownload = async (reportId: string) => {
+    try {
+      const blob = await downloadReport(reportId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `report-${reportId}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
   };
 
   return (
-    <div className="w-full flex flex-col gap-6">
+    <div className="w-full flex flex-col gap-6" role="region" aria-label="Reports View">
       
       {/* Top Banner Control Panel */}
       <div className="glass-panel p-4.5 rounded-2xl border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -48,23 +58,28 @@ export default function ReportsView() {
           <h2 className="text-sm font-bold text-white mt-0.5 font-sans">Report Compilation Hub</h2>
         </div>
 
-        <button 
-          onClick={handleCreateReport}
-          disabled={isGenerating}
-          className="px-4 py-2.5 bg-gradient-to-tr from-[#8B5CF6] to-[#A855F7] hover:brightness-110 active:scale-95 text-white font-semibold text-xs rounded-xl flex items-center gap-2 transition-all shadow-[0_4px_12px_rgba(139,92,246,0.3)] shrink-0"
-        >
-          {isGenerating ? (
-            <>
-              <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              <span>Generating Core Vectors...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4 animate-pulse" />
-              <span>Compile Executive Report</span>
-            </>
+        <div className="flex items-center gap-3">
+          {genError && (
+            <span className="text-[10px] text-rose-400 font-medium">{genError}</span>
           )}
-        </button>
+          <button 
+            onClick={handleCreateReport}
+            disabled={isGenerating}
+            className="px-4 py-2.5 bg-gradient-to-tr from-[#8B5CF6] to-[#A855F7] hover:brightness-110 active:scale-95 text-white font-semibold text-xs rounded-xl flex items-center gap-2 transition-all shadow-[0_4px_12px_rgba(139,92,246,0.3)] shrink-0"
+          >
+            {isGenerating ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                <span>Generating Core Vectors...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 animate-pulse" />
+                <span>Compile Executive Report</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Main Executive Summary Bento Grid */}
@@ -180,35 +195,61 @@ export default function ReportsView() {
       <div className="flex flex-col gap-3">
         <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase font-bold px-1">Historical Compilation Logs</span>
         
-        <div className="glass-panel overflow-x-auto rounded-2xl border-white/5">
-          <table className="w-full text-left border-collapse min-w-[600px]">
-            <thead>
-              <tr className="border-b border-white/5 bg-white/[0.01]">
-                <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Report Title</th>
-                <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Date Compiled</th>
-                <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Author</th>
-                <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Format</th>
-                <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Size</th>
-              </tr>
-            </thead>
-            <tbody>
-              {historicalReports.map((hr, idx) => (
-                <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.01] last:border-0 transition-all">
-                  <td className="py-3 px-4 flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-[#8B5CF6] shrink-0" />
-                    <span className="text-xs font-bold text-white truncate max-w-[280px]">{hr.title}</span>
-                  </td>
-                  <td className="py-3 px-4 text-xs text-zinc-400 font-mono">{hr.date}</td>
-                  <td className="py-3 px-4 text-xs font-semibold text-zinc-300">{hr.author}</td>
-                  <td className="py-3 px-4">
-                    <span className="text-[8px] font-bold font-mono px-1.5 py-0.2 rounded bg-white/5 border border-white/5 text-zinc-400">{hr.format}</span>
-                  </td>
-                  <td className="py-3 px-4 text-xs text-zinc-400 font-mono">{hr.size}</td>
+        {isLoading && (
+          <div className="glass-panel p-8 rounded-2xl border-white/5 flex items-center justify-center" aria-live="polite">
+            <Loader2 className="w-5 h-5 text-[#8B5CF6] animate-spin" />
+          </div>
+        )}
+
+        {error && !isLoading && (
+          <div className="glass-panel p-4 rounded-2xl border-rose-500/20 flex items-center gap-2 text-rose-400 text-xs" role="alert">
+            <AlertCircle className="w-4 h-4" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {!isLoading && !error && (
+          <div className="glass-panel overflow-x-auto rounded-2xl border-white/5">
+            <table className="w-full text-left border-collapse min-w-[600px]">
+              <thead>
+                <tr className="border-b border-white/5 bg-white/[0.01]">
+                  <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Report Title</th>
+                  <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Date Compiled</th>
+                  <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Author</th>
+                  <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Format</th>
+                  <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Size</th>
+                  <th className="py-3.5 px-4 text-[10px] font-mono tracking-wider text-zinc-400 uppercase font-bold">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {(reports.length > 0 ? reports : []).map((hr, idx) => (
+                  <tr key={hr.id || idx} className="border-b border-white/5 hover:bg-white/[0.01] last:border-0 transition-all">
+                    <td className="py-3 px-4 flex items-center gap-2 min-w-0">
+                      <FileText className="w-4 h-4 text-[#8B5CF6] shrink-0" />
+                      <span className="text-xs font-bold text-white truncate max-w-[280px]">{hr.title || `Report ${hr.id}`}</span>
+                    </td>
+                    <td className="py-3 px-4 text-xs text-zinc-400 font-mono">{hr.createdAt || hr.date || '-'}</td>
+                    <td className="py-3 px-4 text-xs font-semibold text-zinc-300">{'author' in hr ? hr.author : 'AI Agent'}</td>
+                    <td className="py-3 px-4">
+                      <span className="text-[8px] font-bold font-mono px-1.5 py-0.2 rounded bg-white/5 border border-white/5 text-zinc-400">{hr.format || 'PDF'}</span>
+                    </td>
+                    <td className="py-3 px-4 text-xs text-zinc-400 font-mono">{'size' in hr ? hr.size : '-'}</td>
+                    <td className="py-3 px-4">
+                      <button onClick={() => handleDownload(hr.id)} className="p-1 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white transition-colors" aria-label={`Download report ${hr.id}`}>
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {reports.length === 0 && !isLoading && !error && (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-zinc-500 text-xs">No reports generated yet</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
     </div>

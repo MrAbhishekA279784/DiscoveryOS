@@ -1,27 +1,32 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
 import { 
-  Database, 
   Plus, 
   RefreshCw, 
-  CheckCircle, 
-  CheckCircle2, 
   AlertCircle, 
   Settings2, 
-  Link2, 
   FileText, 
-  Globe, 
-  ShieldCheck,
   Search,
-  Check,
-  CloudLightning
+  Loader2
 } from 'lucide-react';
+import { useDataSources } from '../utils/useDataSources';
+import { useFileConnectors } from '../utils/useFileConnectors';
 
 export default function DataSourcesView() {
+  const { dataSources, isLoading, error, isEmpty, syncDataSource, connectDataSource } = useDataSources();
   const [syncStates, setSyncStates] = useState<Record<string, 'idle' | 'syncing'>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const { connectors: fileConnectors, isLoading: fcLoading, error: fcError, refetch: refetchFc } = useFileConnectors();
 
-  const integrations = [
+  const integrations = dataSources.length > 0 ? dataSources.map(ds => ({
+    id: ds.id,
+    name: ds.serviceType || ds.name || 'Unknown',
+    category: ds.serviceType || 'Integration',
+    status: ds.status === 'connected' ? 'Connected' : ds.status === 'error' ? 'Error' : 'Setup Required',
+    volume: ds.volume || '0 KB',
+    health: ds.health ? `${ds.health}%` : '—',
+    lastSync: ds.lastSyncAt || 'Never',
+    desc: `${ds.serviceType} data source connector`
+  })) : [
     { id: 'drive', name: 'Google Drive', category: 'Document Cloud', status: 'Connected', volume: '14.2 MB', health: '99.8%', lastSync: '10 mins ago', desc: 'Syncs team folders, interview transcripts, and customer research briefs.' },
     { id: 'notion', name: 'Notion Workspace', category: 'Product Knowledge', status: 'Connected', volume: '4.8 MB', health: '100%', lastSync: '1 hour ago', desc: 'Ingests product specification databases, epic trackers, and draft roadmaps.' },
     { id: 'jira', name: 'Jira Software', category: 'Sprint Tracking', status: 'Connected', volume: '124 KB', health: '98.5%', lastSync: '2 hours ago', desc: 'Cross-references active crash tickets, bug backlogs, and customer escalations.' },
@@ -30,16 +35,15 @@ export default function DataSourcesView() {
     { id: 'api', name: 'REST API Gateway', category: 'Custom Integrations', status: 'Setup Required', volume: '0 KB', health: '—', lastSync: 'Never', desc: 'Inward webhook channel to pipeline proprietary telemetry into vector indices.' }
   ];
 
-  const fileConnectors = [
-    { name: 'CSV Feedback Loader', type: 'CSV / Excel', volume: '1.4 MB', count: '12 logs', status: 'Connected' },
-    { name: 'Structured PDF Indexer', type: 'Adobe PDF', volume: '8.2 MB', count: '4 briefs', status: 'Connected' }
-  ];
-
-  const handleSyncSource = (id: string) => {
+  const handleSyncSource = async (id: string) => {
     setSyncStates(prev => ({ ...prev, [id]: 'syncing' }));
-    setTimeout(() => {
+    try {
+      await syncDataSource(id);
+    } catch (err) {
+      console.error('Sync failed:', err);
+    } finally {
       setSyncStates(prev => ({ ...prev, [id]: 'idle' }));
-    }, 1500);
+    }
   };
 
   const filteredIntegrations = integrations.filter(it => 
@@ -48,7 +52,7 @@ export default function DataSourcesView() {
   );
 
   return (
-    <div className="w-full flex flex-col gap-6">
+    <div className="w-full flex flex-col gap-6" role="region" aria-label="Data Sources View">
       
       {/* Top Banner Control Panel */}
       <div className="glass-panel p-4.5 rounded-2xl border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -83,11 +87,25 @@ export default function DataSourcesView() {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search connected platforms..."
             className="w-full bg-[#0E0E15]/90 border border-white/5 pl-10 pr-3 py-1.5 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-[#8B5CF6]/50 transition-all"
+            aria-label="Search connected platforms"
           />
         </div>
       </div>
 
-      {/* Grid of Cloud Integrations */}
+      {isLoading && (
+        <div className="glass-panel p-8 rounded-2xl border-white/5 flex items-center justify-center" aria-live="polite">
+          <Loader2 className="w-5 h-5 text-[#8B5CF6] animate-spin" />
+        </div>
+      )}
+
+      {error && !isLoading && (
+        <div className="glass-panel p-4 rounded-2xl border-rose-500/20 flex items-center gap-2 text-rose-400 text-xs" role="alert">
+          <AlertCircle className="w-4 h-4" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {!isLoading && !error && (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {filteredIntegrations.map((it) => {
           const isSyncing = syncStates[it.id] === 'syncing' || syncStates['all'] === 'syncing';
@@ -155,14 +173,38 @@ export default function DataSourcesView() {
           );
         })}
       </div>
+      )}
 
       {/* Binary Document and Native File Uploaders */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" aria-label="File Connectors">
         <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase font-bold px-1">Raw File Indexes</span>
-        
+
+        {fcLoading && (
+          <div className="glass-panel p-8 rounded-2xl border-white/5 flex items-center justify-center" aria-live="polite">
+            <Loader2 className="w-5 h-5 text-[#8B5CF6] animate-spin" />
+          </div>
+        )}
+
+        {fcError && !fcLoading && (
+          <div className="glass-panel p-4 rounded-2xl border-rose-500/20 flex items-center gap-2 text-rose-400 text-xs" role="alert">
+            <AlertCircle className="w-4 h-4" />
+            <span>{fcError}</span>
+            <button onClick={refetchFc} className="ml-auto px-3 py-1.5 rounded-lg text-[10px] font-bold bg-[#8B5CF6]/15 hover:bg-[#8B5CF6]/25 border border-[#8B5CF6]/20 text-[#A855F7] active:scale-95 transition-all">
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!fcLoading && !fcError && fileConnectors.length === 0 && (
+          <div className="glass-panel p-4 rounded-2xl border-white/5 flex items-center justify-center text-zinc-500 text-xs">
+            No file connectors configured
+          </div>
+        )}
+
+        {!fcLoading && !fcError && fileConnectors.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {fileConnectors.map((fc, idx) => (
-            <div key={idx} className="glass-panel p-4 rounded-2xl border-white/5 flex items-center justify-between gap-4">
+          {fileConnectors.map((fc) => (
+            <div key={fc.id} className="glass-panel p-4 rounded-2xl border-white/5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3.5 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center border border-[#8B5CF6]/20 shrink-0">
                   <FileText className="w-5 h-5 text-[#8B5CF6]" />
@@ -172,7 +214,7 @@ export default function DataSourcesView() {
                   <div className="flex items-center gap-2.5 text-[10px] text-zinc-500 font-mono mt-0.5 uppercase">
                     <span>{fc.type}</span>
                     <span>•</span>
-                    <span>{fc.count}</span>
+                    <span>{String(fc.count)}</span>
                   </div>
                 </div>
               </div>
@@ -184,6 +226,7 @@ export default function DataSourcesView() {
             </div>
           ))}
         </div>
+        )}
       </div>
 
     </div>

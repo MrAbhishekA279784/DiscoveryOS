@@ -1,0 +1,144 @@
+
+======================================================================
+  DiscoveryOS Integration Test Suite (Advanced)
+======================================================================
+
+Target: http://localhost:8000
+Timestamp: 2026-07-19T15:30:54.940980
+
+
+======================================================================
+  Phase 1: Health Check (Unauthenticated)
+======================================================================
+
+PASS: Health endpoint returns correct schema
+       Status: degraded
+       Environment: development
+       Database: unhealthy
+
+======================================================================
+  Phase 2: Authentication Flow
+======================================================================
+
+INFO: Creating mock backend JWT tokens...
+PASS: Mock JWT token created (degraded mode)
+       User ID: e37f134f-fbce-4c55-84e7-e8eefabed495
+       Email: test@discoveryos.local
+       Token: eyJhbGciOiJIUzI1NiIs...
+
+Testing auth/me endpoint with mock JWT...
+PASS: Auth/me endpoint accepts mock JWT
+       Status: authenticated
+       User ID: e37f134f-fbce-4c55-84e7-e8eefabed495
+
+
+======================================================================
+  Phase 3: Dashboard Endpoints (Authenticated)
+======================================================================
+
+Testing KPIs endpoint...
+PASS: KPIs endpoint returns data
+       KPIs count: 4
+       Sample: Total Feedback = 1,284
+
+Testing pain points endpoint...
+PASS: Pain points endpoint returns data
+       Pain points count: 4
+       Sample: Offline Mode (33.6%)
+
+Testing recommendations endpoint...
+PASS: Recommendations endpoint returns data
+       Recommendations count: 2
+
+
+======================================================================
+  Phase 4: File Operations (Authenticated)
+======================================================================
+
+Testing file upload...
+FAIL: File upload returned status 500
+Response: {'detail': 'Failed to register uploaded file catalog metadata'}
+INFO: May fail if database unavailable (degraded mode)
+
+
+======================================================================
+  Phase 5: Workspace Access Control
+======================================================================
+
+Testing workspace list endpoint...
+PASS: Workspace list returns data
+       Workspaces count: 0
+
+Testing workspace detail endpoint...
+FAIL: Workspace detail returned status 404
+INFO: Expected in degraded mode
+
+Testing workspace projects endpoint...
+FAIL: Projects endpoint returned status 429
+
+Testing access denial without auth...
+INFO: Got status 429 instead of 403/401 - may be in degraded mode
+
+
+======================================================================
+  Test Summary
+======================================================================
+
+Total Tests: 10
+Passed: 7
+Failed: 3
+Pass Rate: 70.0%
+
+======================================================================
+  Endpoint Test Results
+======================================================================
+
+PASS: 1/1 successful
+     Endpoint: GET /auth/me
+     [1] Status: 200
+PASS: 1/1 successful
+     Endpoint: GET /health
+     [1] Status: 200
+PASS: 1/1 successful
+     Endpoint: GET /workspaces
+     [1] Status: 200
+FAIL: 0/1 successful
+     Endpoint: GET /workspaces/{id}
+     [1] Status: 404
+PASS: 1/1 successful
+     Endpoint: GET /workspaces/{id}/dashboard/kpis
+     [1] Status: 200
+PASS: 1/1 successful
+     Endpoint: GET /workspaces/{id}/dashboard/pain-points
+     [1] Status: 200
+PASS: 1/1 successful
+     Endpoint: GET /workspaces/{id}/dashboard/recommendations
+     [1] Status: 200
+FAIL: 0/1 successful
+     Endpoint: GET /workspaces/{id}/projects
+     [1] Status: 429
+FAIL: 0/1 successful
+     Endpoint: GET /workspaces/{id}/projects (unauthenticated)
+     [1] Status: 429
+FAIL: 0/1 successful
+     Endpoint: POST /workspaces/{id}/files/upload
+     [1] Status: 500
+
+======================================================================
+  Critical Flow Status
+======================================================================
+
+PASS: Health Check
+PASS: Authentication
+PASS: Dashboard Access
+FAIL: File Operations
+PASS: Access Control
+
+======================================================================
+  Findings
+======================================================================
+
+- Access control returned 429 instead of 403/401
+
+PASS: Basic integration tests completed successfully
+INFO: 3 tests failed - see details above

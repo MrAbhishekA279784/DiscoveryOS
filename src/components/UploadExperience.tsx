@@ -13,6 +13,7 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { FileItem } from '../types';
+import { useFiles } from '../utils/useFiles';
 
 interface UploadExperienceProps {
   onUploadSuccess: (newFile: FileItem) => void;
@@ -21,10 +22,12 @@ interface UploadExperienceProps {
 
 export default function UploadExperience({ onUploadSuccess, files }: UploadExperienceProps) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'scanning' | 'analyzing' | 'completed'>('idle');
+  const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'scanning' | 'analyzing' | 'completed' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState<string>('');
+  const [uploadError, setUploadError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { uploadFile, fetchFiles } = useFiles();
 
   // Simulated scanning step indicator
   const [scannedStep, setScannedStep] = useState(0);
@@ -65,47 +68,36 @@ export default function UploadExperience({ onUploadSuccess, files }: UploadExper
     }
   };
 
-  // Triggers simulated file scanning pipeline
-  const processUploadedFile = (fileName: string, fileSize: string, type: string) => {
-    setCurrentFile(fileName);
+  // Real upload via API
+  const processUploadedFile = async (file: File) => {
+    setCurrentFile(file.name);
+    setUploadError('');
     setUploadState('uploading');
     setProgress(0);
     setScannedStep(0);
 
-    // Step 1: Uploading progress
-    let uploadProgress = 0;
-    const uploadInterval = setInterval(() => {
-      uploadProgress += 10;
-      setProgress(uploadProgress);
-      if (uploadProgress >= 100) {
-        clearInterval(uploadInterval);
-        setUploadState('scanning');
-        
-        // Step 2: Running through AI stages sequentially
-        let step = 0;
-        const scanInterval = setInterval(() => {
-          step += 1;
-          setScannedStep(step);
-          if (step >= scanSteps.length) {
-            clearInterval(scanInterval);
-            setUploadState('completed');
+    try {
+      const uploaded = await uploadFile(file, (pct) => {
+        setProgress(pct);
+      });
 
-            // Dispatch upload success to state
-            setTimeout(() => {
-              onUploadSuccess({
-                id: Math.random().toString(36).substr(2, 9),
-                name: fileName,
-                size: fileSize,
-                type: type,
-                timestamp: 'Just now'
-              });
-              // Reset to idle
-              setUploadState('idle');
-            }, 1000);
-          }
-        }, 1200);
-      }
-    }, 150);
+      setUploadState('completed');
+
+      setTimeout(() => {
+        onUploadSuccess({
+          id: uploaded.id || Math.random().toString(36).substr(2, 9),
+          name: uploaded.name || file.name,
+          size: uploaded.size || `${(file.size / 1024).toFixed(0)} KB`,
+          type: uploaded.type || file.name.split('.').pop() || 'csv',
+          timestamp: 'Just now'
+        });
+        fetchFiles();
+        setUploadState('idle');
+      }, 1000);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      setUploadState('error');
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -122,22 +114,14 @@ export default function UploadExperience({ onUploadSuccess, files }: UploadExper
     setIsDragOver(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
-      const ext = droppedFile.name.split('.').pop() || 'csv';
-      const sizeStr = droppedFile.size > 1024 * 1024 
-        ? `${(droppedFile.size / (1024 * 1024)).toFixed(1)} MB` 
-        : `${(droppedFile.size / 1024).toFixed(0)} KB`;
-      processUploadedFile(droppedFile.name, sizeStr, ext);
+      processUploadedFile(droppedFile);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      const ext = selectedFile.name.split('.').pop() || 'csv';
-      const sizeStr = selectedFile.size > 1024 * 1024 
-        ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB` 
-        : `${(selectedFile.size / 1024).toFixed(0)} KB`;
-      processUploadedFile(selectedFile.name, sizeStr, ext);
+      processUploadedFile(selectedFile);
     }
   };
 
@@ -264,6 +248,26 @@ export default function UploadExperience({ onUploadSuccess, files }: UploadExper
               <p className="text-[10px] text-zinc-400 max-w-[200px] leading-relaxed">
                 Source parsed and classified. Dashboard data metrics successfully synced.
               </p>
+            </motion.div>
+          )}
+
+          {uploadState === 'error' && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center gap-3"
+            >
+              <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-rose-500" />
+              </div>
+              <span className="text-xs font-bold text-white uppercase tracking-widest font-mono">Upload Failed</span>
+              <p className="text-[10px] text-rose-400 max-w-[220px] leading-relaxed">{uploadError}</p>
+              <button 
+                onClick={() => setUploadState('idle')}
+                className="mt-2 px-4 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-zinc-300"
+              >
+                Try Again
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

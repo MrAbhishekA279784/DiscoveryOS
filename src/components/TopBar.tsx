@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, 
   Bell, 
@@ -13,9 +13,13 @@ import {
   User,
   Shield,
   HelpCircle,
-  LogOut
+  LogOut,
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useSearch } from '../utils/useSearch';
+import { useNotifications } from '../utils/useNotifications';
 
 interface TopBarProps {
   onSearchCommand?: (cmd: string) => void;
@@ -28,6 +32,15 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
   const [searchQuery, setSearchQuery] = useState('');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const { results, isLoading: searchLoading, error: searchError, isEmpty, search } = useSearch();
+  const { notifications, isLoading: notifLoading, error: notifError, refetch: refetchNotif } = useNotifications();
+
+  const handleSearchInput = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (value.trim()) {
+      search(value);
+    }
+  }, [search]);
 
   // Keyboard shortcut listener for Command+K
   useEffect(() => {
@@ -40,12 +53,6 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  const notifications = [
-    { id: '1', title: 'AI Sentiment Analysis Complete', desc: '1,284 customer feedback pieces analyzed.', time: '2 hours ago', unread: true },
-    { id: '2', title: 'New High Priority Pain Point Detected', desc: 'Offline Mode mentions jumped by 24% this week.', time: '4 hours ago', unread: true },
-    { id: '3', title: 'Support Ticket Import Success', desc: 'Week 20 CSV tickets loaded (45 KB).', time: '1 day ago', unread: false }
-  ];
 
   const suggestedCommands = [
     { icon: Sparkles, text: 'Analyze user interviews from May', action: 'analyze_interviews' },
@@ -73,6 +80,7 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
           <button
             onClick={() => setSearchOpen(true)}
             className="w-full flex items-center justify-between px-3.5 py-2 rounded-full bg-[#121218]/80 hover:bg-[#181824]/90 border border-white/5 transition-all duration-300 text-left outline-none"
+            aria-label="Open search"
           >
             <div className="flex items-center gap-2.5">
               <Search className="w-4 h-4 text-zinc-500" />
@@ -145,11 +153,14 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
           <button
             onClick={() => setNotificationsOpen(!notificationsOpen)}
             className="relative p-2 rounded-full hover:bg-white/5 text-zinc-300 transition-all duration-300"
+            aria-label="Notifications"
           >
             <Bell className="w-4.5 h-4.5" />
-            <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-[#8B5CF6] text-[8px] font-extrabold text-white flex items-center justify-center">
-              3
-            </span>
+            {!notifLoading && !notifError && notifications.length > 0 && (
+              <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-[#8B5CF6] text-[8px] font-extrabold text-white flex items-center justify-center">
+                {notifications.length}
+              </span>
+            )}
           </button>
 
           <AnimatePresence>
@@ -157,6 +168,9 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setNotificationsOpen(false)} />
                 <motion.div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Notifications"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
@@ -166,22 +180,49 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
                     <span className="text-xs font-bold text-white uppercase tracking-wider">Notifications</span>
                     <button className="text-[10px] text-[#8B5CF6] font-semibold hover:underline">Mark all read</button>
                   </div>
-                  <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto">
-                    {notifications.map((notif) => (
+                  <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto" aria-live="polite">
+                    {notifLoading && (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
+                      </div>
+                    )}
+
+                    {notifError && !notifLoading && (
+                      <div className="p-3 text-center">
+                        <div className="flex items-center gap-2 text-rose-400 text-xs mb-2 justify-center">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          <span>{notifError}</span>
+                        </div>
+                        <button
+                          onClick={refetchNotif}
+                          className="text-[10px] text-[#8B5CF6] font-semibold hover:underline"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
+
+                    {!notifLoading && !notifError && notifications.length === 0 && (
+                      <div className="p-6 text-center text-zinc-500 text-xs">
+                        No notifications yet
+                      </div>
+                    )}
+
+                    {!notifLoading && !notifError && notifications.map((notif) => (
                       <div 
                         key={notif.id} 
                         className={`p-2.5 rounded-xl text-left border transition-all ${
-                          notif.unread 
+                          !notif.isRead 
                             ? 'bg-[#8B5CF6]/5 border-[#8B5CF6]/20' 
                             : 'bg-white/[0.01] border-transparent'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <span className="text-xs font-semibold text-white leading-tight">{notif.title}</span>
-                          {notif.unread && <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] mt-1 shrink-0" />}
+                          {!notif.isRead && <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] mt-1 shrink-0" />}
                         </div>
-                        <p className="text-[10px] text-zinc-400 mt-1 leading-snug">{notif.desc}</p>
-                        <span className="text-[9px] font-mono text-zinc-500 mt-1.5 block">{notif.time}</span>
+                        <p className="text-[10px] text-zinc-400 mt-1 leading-snug">{notif.description}</p>
+                        <span className="text-[9px] font-mono text-zinc-500 mt-1.5 block">{notif.timestamp}</span>
                       </div>
                     ))}
                   </div>
@@ -193,9 +234,11 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
 
         {/* User Profile */}
         <div className="relative">
-          <button
+            <button
             onClick={() => setProfileOpen(!profileOpen)}
             className="flex items-center gap-2.5 pl-1.5 pr-2 py-1 rounded-xl hover:bg-white/5 transition-all text-left"
+            aria-expanded={profileOpen}
+            aria-label="User profile"
           >
             <div className="relative w-8 h-8 rounded-full overflow-hidden border border-[#8B5CF6]/40">
               {/* Fallback initials with visual avatar styling */}
@@ -215,6 +258,9 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
                 <motion.div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Profile menu"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
@@ -262,6 +308,9 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
             
             <div className="fixed top-[15vh] left-[50%] -translate-x-[50%] w-full max-w-xl z-50 p-4">
               <motion.div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Command palette"
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.96 }}
@@ -274,10 +323,11 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => handleSearchInput(e.target.value)}
                     placeholder="Search documents, issues, or command AI..."
                     className="flex-1 bg-transparent border-none text-white text-sm font-medium outline-none placeholder-zinc-500"
                     autoFocus
+                    aria-label="Search documents, issues, or command AI"
                   />
                   <div className="text-[10px] font-mono text-zinc-500 bg-white/[0.05] px-2 py-0.5 rounded border border-white/5">
                     ESC
@@ -287,35 +337,69 @@ export default function TopBar({ onSearchCommand, onExportPDF, isExporting }: To
                 {/* Suggestions list */}
                 <div className="p-3">
                   <div className="text-[10px] font-mono text-zinc-500 font-bold uppercase tracking-wider px-2 mb-2">
-                    AI Suggestions & Fast Actions
+                    {searchQuery.trim() ? 'Search Results' : 'AI Suggestions & Fast Actions'}
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    {suggestedCommands
-                      .filter(cmd => cmd.text.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((cmd, idx) => {
-                        const CmdIcon = cmd.icon;
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => handleCommandClick(cmd.text)}
-                            className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#8B5CF6]/10 hover:border-[#8B5CF6]/20 border border-transparent transition-all text-left text-xs font-semibold text-zinc-300 hover:text-white"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-6 h-6 rounded-lg bg-white/[0.03] flex items-center justify-center border border-white/5">
-                                <CmdIcon className="w-3.5 h-3.5 text-[#8B5CF6]" />
-                              </div>
-                              <span>{cmd.text}</span>
+                    {searchLoading && (
+                      <div className="flex items-center gap-2 p-3 text-zinc-500 text-xs">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B5CF6]" />
+                        <span>Searching...</span>
+                      </div>
+                    )}
+
+                    {searchError && !searchLoading && (
+                      <div className="flex items-center gap-2 p-3 text-rose-400 text-xs">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>{searchError}</span>
+                      </div>
+                    )}
+
+                    {!searchLoading && !searchError && searchQuery.trim() && results.length > 0 && results.map((result, idx) => (
+                      <button
+                        key={result.id || idx}
+                        onClick={() => { handleCommandClick(result.title); onSearchCommand && onSearchCommand(result.title); }}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#8B5CF6]/10 hover:border-[#8B5CF6]/20 border border-transparent transition-all text-left text-xs font-semibold text-zinc-300 hover:text-white"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-6 h-6 rounded-lg bg-white/[0.03] flex items-center justify-center border border-white/5 shrink-0">
+                            <FileText className="w-3.5 h-3.5 text-[#8B5CF6]" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="truncate block">{result.title}</span>
+                            {result.snippet && <span className="text-[9px] text-zinc-500 truncate block mt-0.5">{result.snippet}</span>}
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-mono text-zinc-500 bg-white/[0.02] px-1.5 py-0.5 rounded border border-white/5 uppercase shrink-0 ml-2">
+                          {result.source || 'Document'}
+                        </span>
+                      </button>
+                    ))}
+
+                    {!searchLoading && !searchError && !searchQuery.trim() && suggestedCommands.map((cmd, idx) => {
+                      const CmdIcon = cmd.icon;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => handleCommandClick(cmd.text)}
+                          className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#8B5CF6]/10 hover:border-[#8B5CF6]/20 border border-transparent transition-all text-left text-xs font-semibold text-zinc-300 hover:text-white"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-6 h-6 rounded-lg bg-white/[0.03] flex items-center justify-center border border-white/5">
+                              <CmdIcon className="w-3.5 h-3.5 text-[#8B5CF6]" />
                             </div>
-                            <span className="text-[9px] font-mono text-zinc-500 bg-white/[0.02] px-1.5 py-0.5 rounded border border-white/5 uppercase">
-                              Action
-                            </span>
-                          </button>
-                        );
-                      })}
-                    {suggestedCommands.filter(cmd => cmd.text.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                            <span>{cmd.text}</span>
+                          </div>
+                          <span className="text-[9px] font-mono text-zinc-500 bg-white/[0.02] px-1.5 py-0.5 rounded border border-white/5 uppercase">
+                            Action
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {!searchLoading && !searchError && searchQuery.trim() && results.length === 0 && (
                       <div className="p-6 text-center text-zinc-500 text-xs">
-                        No matches found for <span className="font-mono text-zinc-400">"{searchQuery}"</span>. Type to summon Discovery AI.
+                        No matches found for <span className="font-mono text-zinc-400">"{searchQuery}"</span>.
                       </div>
                     )}
                   </div>

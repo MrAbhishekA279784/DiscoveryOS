@@ -14,9 +14,13 @@ import {
   Search,
   DollarSign,
   Globe,
-  Zap
+  Zap,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { PainPoint, Recommendation } from '../types';
+import { useDashboard } from '../utils/useDashboard';
+import { useAnalytics } from '../utils/useAnalytics';
 
 // ==========================================
 // 1. TOP PAIN POINTS CARD
@@ -25,15 +29,43 @@ interface PainPointsProps {
   onPainPointClick?: (point: PainPoint) => void;
 }
 
+const painPointIcons: Record<string, React.ComponentType<any>> = {
+  'offline': Smartphone,
+  'dark': Moon,
+  'navigation': Compass,
+  'seat': Search,
+  'price': DollarSign,
+  'language': Globe,
+};
+
+function getPainPointIcon(name: string): React.ComponentType<any> {
+  const key = Object.keys(painPointIcons).find(k => name.toLowerCase().includes(k));
+  return key ? painPointIcons[key] : Flame;
+}
+
 export function TopPainPointsCard({ onPainPointClick }: PainPointsProps) {
-  const painPoints = [
-    { id: '1', name: 'Offline Mode', count: 432, percentage: 33.6, icon: Smartphone },
-    { id: '2', name: 'Dark Mode', count: 310, percentage: 24.1, icon: Moon },
-    { id: '3', name: 'Navigation Issues', count: 220, percentage: 17.1, icon: Compass },
-    { id: '4', name: 'Seat Search', count: 158, percentage: 12.3, icon: Search },
-    { id: '5', name: 'Price Transparency', count: 96, percentage: 7.5, icon: DollarSign },
-    { id: '6', name: 'Language Support', count: 68, percentage: 5.4, icon: Globe }
-  ];
+  const { painPoints, isLoading, error } = useDashboard();
+
+  if (isLoading) {
+    return (
+      <div id="pain-points-container" className="glass-panel p-5 rounded-2xl flex flex-col justify-between h-full min-h-[380px] overflow-hidden min-w-0 w-full">
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="w-5 h-5 text-[#8B5CF6] animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div id="pain-points-container" className="glass-panel p-5 rounded-2xl flex flex-col justify-between h-full min-h-[380px] overflow-hidden min-w-0 w-full">
+        <div className="flex items-center gap-2 text-rose-400">
+          <AlertCircle className="w-4 h-4" />
+          <span className="text-xs">{error}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="pain-points-container" className="glass-panel p-5 rounded-2xl flex flex-col justify-between h-full min-h-[380px] overflow-hidden min-w-0 w-full">
@@ -51,7 +83,7 @@ export function TopPainPointsCard({ onPainPointClick }: PainPointsProps) {
 
         <div className="flex flex-col gap-3.5">
           {painPoints.map((point) => {
-            const Icon = point.icon;
+            const Icon = getPainPointIcon(point.name);
             return (
               <div 
                 key={point.id} 
@@ -102,24 +134,37 @@ export function FeedbackTrendCard() {
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const { feedbackTrendData, isLoading, error } = useDashboard();
 
-  const dailyData = [
-    { label: 'May 12', count: 120 },
-    { label: 'May 13', count: 185 },
-    { label: 'May 14', count: 150 },
-    { label: 'May 15', count: 260 },
-    { label: 'May 16', count: 420 },
-    { label: 'May 17', count: 310 },
-    { label: 'May 18', count: 340 },
-    { label: 'May 19', count: 280 }
-  ];
+  const hasDaily = !Array.isArray(feedbackTrendData) && feedbackTrendData?.daily;
+  const dailyData = (
+    hasDaily
+      ? feedbackTrendData.daily
+      : Array.isArray(feedbackTrendData) && feedbackTrendData.length > 0
+        ? feedbackTrendData
+        : [
+            { label: 'May 12', count: 120 },
+            { label: 'May 13', count: 185 },
+            { label: 'May 14', count: 150 },
+            { label: 'May 15', count: 260 },
+            { label: 'May 16', count: 420 },
+            { label: 'May 17', count: 310 },
+            { label: 'May 18', count: 340 },
+            { label: 'May 19', count: 280 }
+          ]
+  ).map((d: any) => ({ label: d.label || d.date || '', count: d.count || d.value || 0 }));
 
-  const weeklyData = [
-    { label: 'Week 17', count: 850 },
-    { label: 'Week 18', count: 980 },
-    { label: 'Week 19', count: 1100 },
-    { label: 'Week 20', count: 1284 }
-  ];
+  const hasWeekly = !Array.isArray(feedbackTrendData) && feedbackTrendData?.weekly;
+  const weeklyData = (
+    hasWeekly
+      ? feedbackTrendData.weekly
+      : [
+          { label: 'Week 17', count: 850 },
+          { label: 'Week 18', count: 980 },
+          { label: 'Week 19', count: 1100 },
+          { label: 'Week 20', count: 1284 }
+        ]
+  ).map((d: any) => ({ label: d.label || d.date || '', count: d.count || d.value || 0 }));
 
   const chartData = activeTab === 'daily' ? dailyData : weeklyData;
   const counts = chartData.map(d => d.count);
@@ -361,13 +406,27 @@ export function FeedbackTrendCard() {
 // ==========================================
 // 3. SENTIMENT OVERVIEW CARD (Donut Chart - Redesigned Side-by-Side)
 // ==========================================
+const sentimentColorMap: Record<string, string> = {
+  positive: '#22C55E', neutral: '#F59E0B', negative: '#EF4444', mixed: '#A855F7'
+};
+
 export function SentimentOverviewCard() {
-  const data = [
-    { name: 'Positive', value: 512, percentage: 39.9, color: '#22C55E' },
-    { name: 'Neutral', value: 423, percentage: 32.9, color: '#F59E0B' },
-    { name: 'Negative', value: 278, percentage: 21.7, color: '#EF4444' },
-    { name: 'Mixed', value: 71, percentage: 5.5, color: '#A855F7' }
-  ];
+  const { sentimentData, isLoading, error } = useDashboard();
+
+  const data = (Array.isArray(sentimentData) && sentimentData.length > 0
+    ? sentimentData
+    : [
+        { name: 'Positive', value: 512, percentage: 39.9, color: '#22C55E' },
+        { name: 'Neutral', value: 423, percentage: 32.9, color: '#F59E0B' },
+        { name: 'Negative', value: 278, percentage: 21.7, color: '#EF4444' },
+        { name: 'Mixed', value: 71, percentage: 5.5, color: '#A855F7' }
+      ]
+  ).map((d: any) => ({
+    name: d.name || d.label || '',
+    value: d.value || d.count || 0,
+    percentage: d.percentage || d.percent || 0,
+    color: d.color || sentimentColorMap[(d.name || d.label || '').toLowerCase()] || '#8B5CF6'
+  }));
 
   // SVG parameters
   const size = 110;
@@ -460,36 +519,67 @@ export function SentimentOverviewCard() {
 // ==========================================
 // 4. AI RECOMMENDATIONS CARD (Redesigned without bottom button)
 // ==========================================
+const recColorPalette = ['#A855F7', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+const recIconOptions = [Sparkles, Zap, Moon, Flame, TrendingUp];
+
+function getRecIconAndColor(title: string, index: number) {
+  const lower = title.toLowerCase();
+  let icon = recIconOptions[index % recIconOptions.length];
+  if (lower.includes('offline') || lower.includes('sync') || lower.includes('mode')) icon = Sparkles;
+  else if (lower.includes('navigation') || lower.includes('flow') || lower.includes('nav')) icon = Zap;
+  else if (lower.includes('dark') || lower.includes('theme') || lower.includes('mode')) icon = Moon;
+  return {
+    icon,
+    color: recColorPalette[index % recColorPalette.length],
+    bg: `rgba(${index === 0 ? '168, 85, 247' : index === 1 ? '59, 130, 246' : index === 2 ? '16, 185, 129' : '245, 158, 11'}, 0.08)`
+  };
+}
+
 export function AiRecommendationsCard() {
-  const recommendations = [
-    {
-      id: 'r1',
-      title: 'Prioritize Offline Mode',
-      freqImpact: 'High frequency + High impact',
-      confidence: 94,
-      icon: Sparkles,
-      color: '#A855F7',
-      bg: 'rgba(168, 85, 247, 0.08)'
-    },
-    {
-      id: 'r2',
-      title: 'Improve Navigation Flow',
-      freqImpact: 'Medium frequency + High impact',
-      confidence: 78,
-      icon: Zap,
-      color: '#3B82F6',
-      bg: 'rgba(59, 130, 246, 0.08)'
-    },
-    {
-      id: 'r3',
-      title: 'Add Dark Mode',
-      freqImpact: 'High frequency + Medium impact',
-      confidence: 71,
-      icon: Moon,
-      color: '#10B981',
-      bg: 'rgba(16, 185, 129, 0.08)'
-    }
-  ];
+  const { recommendations, isLoading, error } = useDashboard();
+
+  const items = recommendations.length > 0
+    ? recommendations.map((r, i) => {
+        const style = getRecIconAndColor(r.title, i);
+        return {
+          id: r.id,
+          title: r.title,
+          freqImpact: r.freqImpact || 'Auto-detected',
+          confidence: typeof r.confidence === 'number' ? r.confidence : 85,
+          icon: style.icon,
+          color: style.color,
+          bg: style.bg
+        };
+      })
+    : [
+        {
+          id: 'r1',
+          title: 'Prioritize Offline Mode',
+          freqImpact: 'High frequency + High impact',
+          confidence: 94,
+          icon: Sparkles,
+          color: '#A855F7',
+          bg: 'rgba(168, 85, 247, 0.08)'
+        },
+        {
+          id: 'r2',
+          title: 'Improve Navigation Flow',
+          freqImpact: 'Medium frequency + High impact',
+          confidence: 78,
+          icon: Zap,
+          color: '#3B82F6',
+          bg: 'rgba(59, 130, 246, 0.08)'
+        },
+        {
+          id: 'r3',
+          title: 'Add Dark Mode',
+          freqImpact: 'High frequency + Medium impact',
+          confidence: 71,
+          icon: Moon,
+          color: '#10B981',
+          bg: 'rgba(16, 185, 129, 0.08)'
+        }
+      ];
 
   return (
     <div id="ai-recs-container" className="glass-panel p-5 rounded-2xl flex flex-col justify-between h-full min-h-[290px] overflow-hidden min-w-0 w-full">
@@ -503,7 +593,7 @@ export function AiRecommendationsCard() {
         </div>
 
         <div className="flex flex-col gap-2.5">
-          {recommendations.map((rec) => {
+          {items.map((rec) => {
             const Icon = rec.icon;
             return (
               <div 

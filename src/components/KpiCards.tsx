@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, AlertTriangle, Target, Clock } from 'lucide-react';
+import { MessageSquare, AlertTriangle, Target, Clock, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { KpiItem } from '../types';
+import { useDashboard } from '../utils/useDashboard';
 
 interface KpiCardsProps {
   onCardClick?: (type: string) => void;
@@ -9,44 +10,7 @@ interface KpiCardsProps {
 }
 
 export default function KpiCards({ onCardClick, selectedMetric }: KpiCardsProps) {
-  const kpis: KpiItem[] = [
-    {
-      title: 'Total Feedback',
-      value: '1,284',
-      change: '12.5%',
-      isPositive: true,
-      type: 'feedback',
-      iconName: 'MessageSquare',
-      sparklineData: [40, 45, 38, 52, 48, 62, 58, 65, 74, 85, 80, 92]
-    },
-    {
-      title: 'Pain Points Identified',
-      value: '32',
-      change: '8.3%',
-      isPositive: true,
-      type: 'painpoints',
-      iconName: 'AlertTriangle',
-      sparklineData: [20, 24, 22, 28, 25, 30, 28, 35, 31, 38, 34, 42]
-    },
-    {
-      title: 'AI Accuracy',
-      value: '96%',
-      change: '4.2%',
-      isPositive: true,
-      type: 'accuracy',
-      iconName: 'Target',
-      sparklineData: [90, 91, 89, 92, 93, 92, 94, 95, 94, 96, 95, 96]
-    },
-    {
-      title: 'Avg. Response Time',
-      value: '1.2s',
-      change: '-0.3s',
-      isPositive: true, // positive outcome (meaning lower response time)
-      type: 'responsetime',
-      iconName: 'Clock',
-      sparklineData: [1.8, 1.7, 1.6, 1.5, 1.5, 1.4, 1.3, 1.3, 1.2, 1.2, 1.2, 1.2]
-    }
-  ];
+  const { kpis, isLoading, error } = useDashboard();
 
   const getMetricStyles = (type: string) => {
     switch (type) {
@@ -82,6 +46,32 @@ export default function KpiCards({ onCardClick, selectedMetric }: KpiCardsProps)
 
     return { linePath, areaPath };
   };
+
+  if (isLoading) {
+    return (
+      <div id="kpi-grid-container" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {[1,2,3,4].map((i) => (
+          <div key={i} className="glass-panel p-5 rounded-2xl border-white/5 flex flex-col gap-4 min-h-[180px] animate-pulse">
+            <div className="h-4 bg-white/5 rounded w-24" />
+            <div className="h-8 bg-white/5 rounded w-16 mt-2" />
+            <div className="h-3 bg-white/5 rounded w-20 mt-1" />
+            <div className="h-8 bg-white/5 rounded w-full mt-4" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div id="kpi-grid-container" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="col-span-full glass-panel p-5 rounded-2xl border-rose-500/20 flex items-center gap-3">
+          <AlertCircle className="w-4 h-4 text-rose-400" />
+          <span className="text-xs text-zinc-400">Failed to load KPIs: {error}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="kpi-grid-container" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

@@ -1,0 +1,166 @@
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
+import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, Loader2 } from 'lucide-react';
+import { useAuth } from './AuthContext';
+
+interface LoginPageProps {
+  onSwitchToRegister: () => void;
+  onSwitchToForgotPassword: () => void;
+}
+
+export default function LoginPage({ onSwitchToRegister, onSwitchToForgotPassword }: LoginPageProps) {
+  const { login, googleLogin, isLoading, error, clearError } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) return;
+    setSubmitting(true);
+    try {
+      await login(email.trim(), password.trim());
+    } catch {
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    try {
+      await googleLogin();
+    } catch {
+    }
+  };
+
+  const busy = submitting || isLoading;
+
+  return (
+    <div className="min-h-screen bg-[#07070A] flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
+        <div className="glass-panel rounded-3xl border-white/5 p-8 flex flex-col gap-7 relative overflow-hidden">
+          <div className="absolute -top-32 -right-32 w-64 h-64 bg-[#8B5CF6]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-[#A855F7]/5 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="flex flex-col items-center gap-3 relative z-10">
+            <div className="w-14 h-14 rounded-2xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.15)]">
+              <LogIn className="w-6 h-6 text-[#8B5CF6]" />
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-2xl font-serif text-white tracking-wider">DiscoveryOS</span>
+              <span className="text-[10px] font-mono text-zinc-500 tracking-widest uppercase">Sign In</span>
+            </div>
+          </div>
+
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </motion.div>
+          )}
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4 relative z-10">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-mono tracking-widest text-zinc-400 uppercase font-bold">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); clearError(); }}
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                  className="w-full bg-white/[0.02] border border-white/5 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 font-mono focus:border-[#8B5CF6]/50 outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-mono tracking-widest text-zinc-400 uppercase font-bold">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); clearError(); }}
+                  placeholder="••••••••"
+                  required
+                  autoComplete="current-password"
+                  className="w-full bg-white/[0.02] border border-white/5 rounded-xl pl-10 pr-10 py-3 text-xs text-white placeholder-zinc-600 font-mono focus:border-[#8B5CF6]/50 outline-none transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-400 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#8B5CF6] to-[#A855F7] hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-white flex items-center justify-center gap-2 transition-all shadow-[0_4px_12px_rgba(139,92,246,0.25)]"
+            >
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+              <span>{busy ? 'Signing In...' : 'Sign In'}</span>
+            </button>
+          </form>
+
+          <div className="relative flex items-center gap-3">
+            <div className="flex-1 h-px bg-white/5" />
+            <span className="text-[9px] font-mono text-zinc-500 uppercase">or continue with</span>
+            <div className="flex-1 h-px bg-white/5" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogle}
+            disabled={busy}
+            className="w-full py-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-zinc-300 flex items-center justify-center gap-2.5 transition-all"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+            </svg>
+            <span>Google Sign-In</span>
+          </button>
+
+          <div className="flex flex-col items-center gap-2 text-xs relative z-10">
+            <button
+              type="button"
+              onClick={onSwitchToForgotPassword}
+              className="text-[10px] font-mono text-zinc-500 hover:text-[#8B5CF6] transition-colors"
+            >
+              Forgot Password?
+            </button>
+            <span className="text-[10px] text-zinc-500">
+              Don't have an account?{' '}
+              <button
+                type="button"
+                onClick={onSwitchToRegister}
+                className="text-[#8B5CF6] hover:text-[#A855F7] transition-colors font-semibold"
+              >
+                Create one
+              </button>
+            </span>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
